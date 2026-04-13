@@ -26,30 +26,51 @@ export class Router<C extends Context> implements MiddlewareObj<C> {
   }
 
   on(route: string, ...fns: NonemptyReadonlyArray<Middleware<C>>) {
-    if (fns.length === 0) {
-      throw new TypeError('At least one handler must be provided')
-    }
-    this.handlers.set(route, Composer.compose(fns))
-    return this
-  }
+    // siakinnik - removed, typescript guaranties fns.length !== 0
+    // if (fns.length === 0) {
+    //   throw new TypeError('At least one handler must be provided')
+    // };
+    for (const fn of fns) {
+      if (typeof fn !== 'function' && !(typeof fn === 'object' && 'middleware' in fn)) {
+        throw new TypeError(` Router.on handler for route "${route}" must be a function or MiddlewareObj`)
+      };
+    };
+
+    this.handlers.set(route, Composer.compose(fns));
+    return this;
+  };
 
   otherwise(...fns: NonemptyReadonlyArray<Middleware<C>>) {
-    if (fns.length === 0) {
-      throw new TypeError('At least one otherwise handler must be provided')
-    }
-    this.otherwiseHandler = Composer.compose(fns)
-    return this
+    // siakinnik - removed, typescript guaranties fns.length !== 0
+    // if (fns.length === 0) {
+    //   throw new TypeError('At least one otherwise handler must be provided')
+    // };
+    for (const fn of fns) {
+      if (typeof fn !== 'function' && !(typeof fn === 'object' && 'middleware' in fn)) {
+        throw new TypeError('Telegraf: Router.otherwise handler must be a function or MiddlewareObj')
+      }
+    };
+
+    this.otherwiseHandler = Composer.compose(fns);
+    return this;
   }
 
   middleware() {
     return Composer.lazy<C>((ctx) => {
       const result = this.routeFn(ctx)
       if (result == null) {
-        return this.otherwiseHandler
-      }
-      Object.assign(ctx, result.context)
-      Object.assign(ctx.state, result.state)
-      return this.handlers.get(result.route) ?? this.otherwiseHandler
+        return this.otherwiseHandler;
+      };
+
+      if (result.context) {
+        Object.assign(ctx, result.context);
+      };
+
+      if (result.state) {
+        Object.assign(ctx.state, result.state);
+      };
+
+      return this.handlers.get(result.route) ?? this.otherwiseHandler;
     })
   }
 }
