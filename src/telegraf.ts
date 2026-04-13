@@ -16,6 +16,7 @@ import Telegram from './telegram'
 import { TlsOptions } from 'tls'
 import { URL } from 'url'
 import safeCompare = require('safe-compare')
+import { validateToken } from './core/helpers/validate-token'
 const debug = d('telegraf:main')
 
 const DEFAULT_OPTIONS: Telegraf.Options<Context> = {
@@ -145,13 +146,7 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
     constructor(token: string, options?: Partial<Telegraf.Options<C>>) {
         super()
 
-        if (!token) {
-            throw new Error('Telegraf: Token is required!')
-        };
-
-        if (typeof token !== 'string' || !token.includes(':')) {
-            throw new Error('Telegraf: Invalid token format!')
-        };
+        validateToken(token);
 
         // @ts-expect-error Trust me, TS
         this.options = {
@@ -197,6 +192,23 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
         )
     }
 
+    async validateTokenAsync(): Promise<void> {
+        validateToken(this.token);
+        const url = `https://api.telegram.org/bot${this.token}/getMe`
+        try {
+            debug('Verifying token via getMe...');  
+            const me = await this.telegram.getMe();
+            this.botInfo = me;
+            debug(`Token is valid. Bot: @${me.username}`);
+            return;
+        } catch (err: any) {
+            if (err.response?.error_code === 401) {
+                throw new Error('Telegraf: 401 Unauthorized (Invalid Token)');
+            };
+            throw err;
+        };
+    };
+    
     private getDomainOpts(opts: { domain: string; path?: string }) {
         const protocol =
             opts.domain.startsWith('https://') || opts.domain.startsWith('http://')

@@ -15,7 +15,7 @@ import { message, callbackQuery } from './filters'
 import { argsParser } from './core/helpers/args'
 import { Digit, Reaction } from './reactions'
 
-type ReactionAddedOrRemoFved =
+type ReactionAddedOrRemoved =
   | Reaction
   | `-${tg.TelegramEmoji}`
   | `-${Digit}${string}`
