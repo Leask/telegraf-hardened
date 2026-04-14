@@ -9,7 +9,7 @@ import nodeFetch, {
     RequestInit,
     Response as ResponseNodeFetch,
 } from 'node-fetch'
-import { hasProp, hasPropType } from '../helpers/check'
+import { hasProp } from '../helpers/check'
 import { InputFile, Opts, Telegram } from '../types/typegram'
 import { AbortSignal } from 'abort-controller'
 import { compactOptions } from '../helpers/compact'

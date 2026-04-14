@@ -200,7 +200,6 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
 
     public async validateTokenAsync(): Promise<void> {
         validateToken(this.token)
-        const url = `https://api.telegram.org/bot${this.token}/getMe`
         try {
             debug('Verifying token via getMe...')
             const me = await this.telegram.getMe()

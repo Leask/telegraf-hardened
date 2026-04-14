@@ -54,8 +54,10 @@ export function argsParser(
             else flush(i)
         else if (char === '\n') flush(i)
         else if (char === '\\')
+            // prettier-ignore
             (buf += str.slice(done, i)),
-                (done = ++i) // skip parsing the next char
+                (done = ++i)
+        // skip parsing the next char
         else continue
     }
 
