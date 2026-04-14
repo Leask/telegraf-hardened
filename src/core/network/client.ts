@@ -251,6 +251,17 @@ async function attachFormValue(
       agent,
       fetch
     )
+    if (hasProp(value, 'thumbnail') && value.thumbnail) {
+      const thumbnailId = crypto.randomBytes(16).toString('hex')
+      await attachFormMedia(
+        form,
+        value.thumbnail as InputFile,
+        thumbnailId,
+        agent,
+        fetch
+      )
+      value.thumbnail = `attach://${thumbnailId}`
+    }
     return form.addPart({
       headers: { 'content-disposition': `form-data; name="${id}"` },
       body: JSON.stringify({
