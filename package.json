@@ -1,16 +1,15 @@
 {
-  "name": "telegraf",
-  "version": "4.16.3",
-  "description": "Modern Telegram Bot Framework",
+  "name": "telegraf-hardened",
+  "version": "4.17.0-alpha.1",
+  "description": "Hardened version of Telegraf with community fixes",
   "license": "MIT",
-  "author": "The Telegraf Contributors",
-  "homepage": "https://telegraf.js.org",
+  "author": "The Telegraf-hardened Contributors",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/telegraf/telegraf.git"
+    "url": "git+ssh://git@github.com/siakinnik/telegraf-hardened.git"
   },
   "bugs": {
-    "url": "https://github.com/telegraf/telegraf/issues"
+    "url": "https://github.com/siakinnik/telegraf-hardened/issues"
   },
   "main": "lib/index.js",
   "exports": {
