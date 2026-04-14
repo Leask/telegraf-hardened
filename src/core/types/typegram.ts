@@ -14,26 +14,26 @@ export * from '@telegraf/types/update'
 
 // telegraf input file definition
 interface InputFileByPath {
-  source: string
-  filename?: string
+    source: string
+    filename?: string
 }
 interface InputFileByReadableStream {
-  source: NodeJS.ReadableStream
-  filename?: string
+    source: NodeJS.ReadableStream
+    filename?: string
 }
 interface InputFileByBuffer {
-  source: Buffer
-  filename?: string
+    source: Buffer
+    filename?: string
 }
 interface InputFileByURL {
-  url: string
-  filename?: string
+    url: string
+    filename?: string
 }
 export type InputFile =
-  | InputFileByPath
-  | InputFileByReadableStream
-  | InputFileByBuffer
-  | InputFileByURL
+    | InputFileByPath
+    | InputFileByReadableStream
+    | InputFileByBuffer
+    | InputFileByURL
 
 export type Telegram = Typegram.ApiMethods<InputFile>
 

@@ -1,13 +1,13 @@
 interface Mapping {
-  string: string
-  number: number
-  bigint: bigint
-  boolean: boolean
-  symbol: symbol
-  undefined: undefined
-  object: Record<string, unknown>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function: (...props: any[]) => any
+    string: string
+    number: number
+    bigint: bigint
+    boolean: boolean
+    symbol: symbol
+    undefined: undefined
+    object: Record<string, unknown>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function: (...props: any[]) => any
 }
 
 /**
@@ -25,10 +25,10 @@ interface Mapping {
  * @param prop The name of the property
  */
 export function hasProp<O extends object, K extends PropertyKey>(
-  obj: O | undefined,
-  prop: K
+    obj: O | undefined,
+    prop: K
 ): obj is O & Record<K, unknown> {
-  return obj !== undefined && prop in obj
+    return obj !== undefined && prop in obj
 }
 /**
  * Checks if a given object has a property with a given name.
@@ -47,12 +47,12 @@ export function hasProp<O extends object, K extends PropertyKey>(
  * @param type The type the property is expected to have
  */
 export function hasPropType<
-  O extends object,
-  K extends PropertyKey,
-  T extends keyof Mapping,
-  V extends Mapping[T],
+    O extends object,
+    K extends PropertyKey,
+    T extends keyof Mapping,
+    V extends Mapping[T],
 >(obj: O | undefined, prop: K, type: T): obj is O & Record<K, V> {
-  return hasProp(obj, prop) && type === typeof obj[prop]
+    return hasProp(obj, prop) && type === typeof obj[prop]
 }
 
 /**
@@ -67,5 +67,5 @@ export function hasPropType<
  * @param arr an array with one or two dimensions
  */
 export function is2D<E>(arr: E[] | E[][]): arr is E[][] {
-  return Array.isArray(arr[0])
+    return Array.isArray(arr[0])
 }

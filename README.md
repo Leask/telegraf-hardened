@@ -20,8 +20,8 @@ Telegraf-hardened - Сommunity-led fork of Telegraf.js. Focusing on stability, s
 
 This fork exists and improves thanks to the amazing contributors:
 
-- **[@BataevDaniil](https://github.com/BataevDaniil)** — Architect of the new `fetch` layer.
-- **[@clansty](https://github.com/clansty)** — Critical JSON serialization and thumbnail fixes.
+-   **[@BataevDaniil](https://github.com/BataevDaniil)** — Architect of the new `fetch` layer.
+-   **[@clansty](https://github.com/clansty)** — Critical JSON serialization and thumbnail fixes.
 
 ## Introduction
 
@@ -33,16 +33,16 @@ Telegraf is a library that makes it simple for you to develop your own Telegram 
 
 ### Features
 
-- Full [Telegram Bot API 7.1](https://core.telegram.org/bots/api) support
-- [Excellent TypeScript typings](https://github.com/telegraf/telegraf/releases/tag/v4.0.0)
-- [Lightweight](https://packagephobia.com/result?p=telegraf,node-telegram-bot-api)
-- [AWS **λ**](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-handler.html)
-  / [Firebase](https://firebase.google.com/products/functions/)
-  / [Glitch](https://glitch.com/edit/#!/dashing-light)
-  / [Fly.io](https://fly.io/docs/languages-and-frameworks/node)
-  / Whatever ready
-- `http/https/fastify/Connect.js/express.js` compatible webhooks
-- Extensible
+-   Full [Telegram Bot API 7.1](https://core.telegram.org/bots/api) support
+-   [Excellent TypeScript typings](https://github.com/telegraf/telegraf/releases/tag/v4.0.0)
+-   [Lightweight](https://packagephobia.com/result?p=telegraf,node-telegram-bot-api)
+-   [AWS **λ**](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-handler.html)
+    / [Firebase](https://firebase.google.com/products/functions/)
+    / [Glitch](https://glitch.com/edit/#!/dashing-light)
+    / [Fly.io](https://fly.io/docs/languages-and-frameworks/node)
+    / Whatever ready
+-   `http/https/fastify/Connect.js/express.js` compatible webhooks
+-   Extensible
 
 ### Example
 
@@ -109,7 +109,8 @@ BotFather will give you a _token_, something like `123456789:AbCdefGhIJKlmNoPQRs
 ```shellscript
 $ npm install telegraf-hardened
 ```
-<!-- 
+
+<!--
 or
 
 ```shellscript
@@ -167,36 +168,39 @@ import { message } from 'telegraf/filters'
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
 bot.command('quit', async (ctx) => {
-  // Explicit usage
-  await ctx.telegram.leaveChat(ctx.message.chat.id)
+    // Explicit usage
+    await ctx.telegram.leaveChat(ctx.message.chat.id)
 
-  // Using context shortcut
-  await ctx.leaveChat()
+    // Using context shortcut
+    await ctx.leaveChat()
 })
 
 bot.on(message('text'), async (ctx) => {
-  // Explicit usage
-  await ctx.telegram.sendMessage(ctx.message.chat.id, `Hello ${ctx.state.role}`)
+    // Explicit usage
+    await ctx.telegram.sendMessage(
+        ctx.message.chat.id,
+        `Hello ${ctx.state.role}`
+    )
 
-  // Using context shortcut
-  await ctx.reply(`Hello ${ctx.state.role}`)
+    // Using context shortcut
+    await ctx.reply(`Hello ${ctx.state.role}`)
 })
 
 bot.on('callback_query', async (ctx) => {
-  // Explicit usage
-  await ctx.telegram.answerCbQuery(ctx.callbackQuery.id)
+    // Explicit usage
+    await ctx.telegram.answerCbQuery(ctx.callbackQuery.id)
 
-  // Using context shortcut
-  await ctx.answerCbQuery()
+    // Using context shortcut
+    await ctx.answerCbQuery()
 })
 
 bot.on('inline_query', async (ctx) => {
-  const result = []
-  // Explicit usage
-  await ctx.telegram.answerInlineQuery(ctx.inlineQuery.id, result)
+    const result = []
+    // Explicit usage
+    await ctx.telegram.answerInlineQuery(ctx.inlineQuery.id, result)
 
-  // Using context shortcut
-  await ctx.answerInlineQuery(result)
+    // Using context shortcut
+    await ctx.answerInlineQuery(result)
 })
 
 bot.launch()
@@ -254,14 +258,14 @@ import { createServer } from "https";
 createServer(tlsOptions, await bot.createWebhook({ domain: "example.com" })).listen(8443);
 ```
 
-- [AWS Lambda example integration](https://github.com/feathers-studio/telegraf-docs/tree/master/examples/functions/aws-lambda)
-- [Google Cloud Functions example integration](https://github.com/feathers-studio/telegraf-docs/blob/master/examples/functions/google-cloud-function.ts)
-- [`express` example integration](https://github.com/feathers-studio/telegraf-docs/blob/master/examples/webhook/express.ts)
-- [`fastify` example integration](https://github.com/feathers-studio/telegraf-docs/blob/master/examples/webhook/fastify.ts)
-- [`koa` example integration](https://github.com/feathers-studio/telegraf-docs/blob/master/examples/webhook/koa.ts)
-- [NestJS framework integration module](https://github.com/bukhalo/nestjs-telegraf)
-- [Cloudflare Workers integration module](https://github.com/Tsuk1ko/cfworker-middware-telegraf)
-- Use [`bot.handleUpdate`](https://telegraf.js.org/classes/Telegraf-1.html#handleupdate) to write new integrations
+-   [AWS Lambda example integration](https://github.com/feathers-studio/telegraf-docs/tree/master/examples/functions/aws-lambda)
+-   [Google Cloud Functions example integration](https://github.com/feathers-studio/telegraf-docs/blob/master/examples/functions/google-cloud-function.ts)
+-   [`express` example integration](https://github.com/feathers-studio/telegraf-docs/blob/master/examples/webhook/express.ts)
+-   [`fastify` example integration](https://github.com/feathers-studio/telegraf-docs/blob/master/examples/webhook/fastify.ts)
+-   [`koa` example integration](https://github.com/feathers-studio/telegraf-docs/blob/master/examples/webhook/koa.ts)
+-   [NestJS framework integration module](https://github.com/bukhalo/nestjs-telegraf)
+-   [Cloudflare Workers integration module](https://github.com/Tsuk1ko/cfworker-middware-telegraf)
+-   Use [`bot.handleUpdate`](https://telegraf.js.org/classes/Telegraf-1.html#handleupdate) to write new integrations
 
 ### Error handling
 
@@ -279,11 +283,11 @@ Default `bot.handleError` always rethrows. You can overwrite it using `bot.catch
 
 Supported file sources:
 
-- `Existing file_id`
-- `File path`
-- `Url`
-- `Buffer`
-- `ReadStream`
+-   `Existing file_id`
+-   `File path`
+-   `Url`
+-   `Buffer`
+-   `ReadStream`
 
 Also, you can provide an optional name of a file as `filename` when you send the file.
 
@@ -291,27 +295,30 @@ Also, you can provide an optional name of a file as `filename` when you send the
 
 ```js
 bot.on('message', async (ctx) => {
-  // resend existing file by file_id
-  await ctx.replyWithSticker('123123jkbhj6b')
+    // resend existing file by file_id
+    await ctx.replyWithSticker('123123jkbhj6b')
 
-  // send file
-  await ctx.replyWithVideo(Input.fromLocalFile('/path/to/video.mp4'))
+    // send file
+    await ctx.replyWithVideo(Input.fromLocalFile('/path/to/video.mp4'))
 
-  // send stream
-  await ctx.replyWithVideo(
-    Input.fromReadableStream(fs.createReadStream('/path/to/video.mp4'))
-  )
+    // send stream
+    await ctx.replyWithVideo(
+        Input.fromReadableStream(fs.createReadStream('/path/to/video.mp4'))
+    )
 
-  // send buffer
-  await ctx.replyWithVoice(Input.fromBuffer(Buffer.alloc()))
+    // send buffer
+    await ctx.replyWithVoice(Input.fromBuffer(Buffer.alloc()))
 
-  // send url via Telegram server
-  await ctx.replyWithPhoto(Input.fromURL('https://picsum.photos/200/300/'))
+    // send url via Telegram server
+    await ctx.replyWithPhoto(Input.fromURL('https://picsum.photos/200/300/'))
 
-  // pipe url content
-  await ctx.replyWithPhoto(
-    Input.fromURLStream('https://picsum.photos/200/300/?random', 'kitten.jpg')
-  )
+    // pipe url content
+    await ctx.replyWithPhoto(
+        Input.fromURLStream(
+            'https://picsum.photos/200/300/?random',
+            'kitten.jpg'
+        )
+    )
 })
 ```
 
@@ -345,12 +352,12 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'));
 
 With this simple ability, you can:
 
-- extract information from updates and then `await next()` to avoid disrupting other middleware,
-- like [`Composer`] and [`Router`], `await next()` for updates you don't wish to handle,
-- like [`session`] and [`Scenes`], [extend the context](#extending-context) by mutating `ctx` before `await next()`,
-- [intercept API calls](https://github.com/telegraf/telegraf/discussions/1267#discussioncomment-254525),
-- reuse [other people's code](https://www.npmjs.com/search?q=telegraf-),
-- do whatever **you** come up with!
+-   extract information from updates and then `await next()` to avoid disrupting other middleware,
+-   like [`Composer`] and [`Router`], `await next()` for updates you don't wish to handle,
+-   like [`session`] and [`Scenes`], [extend the context](#extending-context) by mutating `ctx` before `await next()`,
+-   [intercept API calls](https://github.com/telegraf/telegraf/discussions/1267#discussioncomment-254525),
+-   reuse [other people's code](https://www.npmjs.com/search?q=telegraf-),
+-   do whatever **you** come up with!
 
 [`Telegraf`]: https://telegraf.js.org/classes/Telegraf-1.html
 [`Composer`]: https://telegraf.js.org/classes/Composer.html
@@ -377,8 +384,8 @@ import { Context, Telegraf } from 'telegraf'
 
 // Define your own context type
 interface MyContext extends Context {
-  myProp?: string
-  myOtherProp?: number
+    myProp?: string
+    myOtherProp?: number
 }
 
 // Create your bot and tell it about your context type
@@ -386,9 +393,9 @@ const bot = new Telegraf<MyContext>('SECRET TOKEN')
 
 // Register middleware and launch your bot as usual
 bot.use((ctx, next) => {
-  // Yay, `myProp` is now available here as `string | undefined`!
-  ctx.myProp = ctx.chat?.first_name?.toUpperCase()
-  return next()
+    // Yay, `myProp` is now available here as `string | undefined`!
+    ctx.myProp = ctx.chat?.first_name?.toUpperCase()
+    return next()
 })
 // ...
 ```

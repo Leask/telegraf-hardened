@@ -126,10 +126,16 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
                 else {
                     const token = req.headers[TOKEN_HEADER] as string
                     if (safeCompare(this.secretToken, token)) return true
-                    else debug('Secret token does not match:', token, this.secretToken)
+                    else
+                        debug(
+                            'Secret token does not match:',
+                            token,
+                            this.secretToken
+                        )
                 }
             } else debug('Path does not match:', req.url, this.path)
-        } else debug('Unexpected request method, not POST. Received:', req.method)
+        } else
+            debug('Unexpected request method, not POST. Received:', req.method)
 
         return false
     }
@@ -146,7 +152,7 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
     constructor(token: string, options?: Partial<Telegraf.Options<C>>) {
         super()
 
-        validateToken(token);
+        validateToken(token)
 
         // @ts-expect-error Trust me, TS
         this.options = {
@@ -193,25 +199,26 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
     }
 
     public async validateTokenAsync(): Promise<void> {
-        validateToken(this.token);
+        validateToken(this.token)
         const url = `https://api.telegram.org/bot${this.token}/getMe`
         try {
-            debug('Verifying token via getMe...');  
-            const me = await this.telegram.getMe();
-            this.botInfo = me;
-            debug(`Token is valid. Bot: @${me.username}`);
-            return;
+            debug('Verifying token via getMe...')
+            const me = await this.telegram.getMe()
+            this.botInfo = me
+            debug(`Token is valid. Bot: @${me.username}`)
+            return
         } catch (err: any) {
             if (err.response?.error_code === 401) {
-                throw new Error('Telegraf: 401 Unauthorized (Invalid Token)');
-            };
-            throw err;
-        };
-    };
-    
+                throw new Error('Telegraf: 401 Unauthorized (Invalid Token)')
+            }
+            throw err
+        }
+    }
+
     private getDomainOpts(opts: { domain: string; path?: string }) {
         const protocol =
-            opts.domain.startsWith('https://') || opts.domain.startsWith('http://')
+            opts.domain.startsWith('https://') ||
+            opts.domain.startsWith('http://')
 
         if (protocol)
             debug(
@@ -321,7 +328,14 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
 
         const { tlsOptions, port, host, cb, secretToken } = webhook
 
-        this.startWebhook(domainOpts.path, tlsOptions, port, host, cb, secretToken)
+        this.startWebhook(
+            domainOpts.path,
+            tlsOptions,
+            port,
+            host,
+            cb,
+            secretToken
+        )
 
         await this.telegram.setWebhook(domainOpts.url, {
             drop_pending_updates: drop_pending_updates,
@@ -346,15 +360,22 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
     }
 
     private botInfoCall?: Promise<tg.UserFromGetMe>
-    async handleUpdate(update: tg.Update, webhookResponse?: http.ServerResponse) {
+    async handleUpdate(
+        update: tg.Update,
+        webhookResponse?: http.ServerResponse
+    ) {
         this.botInfo ??=
             (debug(
                 'Update %d is waiting for `botInfo` to be initialized',
                 update.update_id
             ),
-                await (this.botInfoCall ??= this.telegram.getMe()))
+            await (this.botInfoCall ??= this.telegram.getMe()))
         debug('Processing update', update.update_id)
-        const tg = new Telegram(this.token, this.telegram.options, webhookResponse)
+        const tg = new Telegram(
+            this.token,
+            this.telegram.options,
+            webhookResponse
+        )
         const TelegrafContext = this.options.contextType
         const ctx = new TelegrafContext(update, tg, this.botInfo)
         Object.assign(ctx, this.context)

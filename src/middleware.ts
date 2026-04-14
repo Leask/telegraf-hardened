@@ -8,17 +8,17 @@ import { Update } from './core/types/typegram'
   Middleware passing the parameter should be a separate type instead.
 */
 export type MiddlewareFn<C extends Context<U>, U extends Update = Update> = (
-  ctx: C,
-  next: () => Promise<void>
+    ctx: C,
+    next: () => Promise<void>
 ) => Promise<unknown> | void
 
 export interface MiddlewareObj<
-  C extends Context<U>,
-  U extends Update = Update,
+    C extends Context<U>,
+    U extends Update = Update,
 > {
-  middleware: () => MiddlewareFn<C, U>
+    middleware: () => MiddlewareFn<C, U>
 }
 
 export type Middleware<C extends Context<U>, U extends Update = Update> =
-  | MiddlewareFn<C, U>
-  | MiddlewareObj<C, U>
+    | MiddlewareFn<C, U>
+    | MiddlewareObj<C, U>
