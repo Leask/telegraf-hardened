@@ -75,7 +75,6 @@
     "expose": "tsx build/expose.ts types scenes filters format future utils markup session",
     "build:docs": "typedoc src/index.ts",
     "pretest": "npm run build",
-    "test": "ava",
     "lint": "eslint .",
     "lint:fix": "npm run lint -- --fix",
     "checks": "npm test && npm run lint",
