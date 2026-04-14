@@ -28,6 +28,20 @@ const WEBHOOK_REPLY_METHOD_ALLOWLIST = new Set<keyof Telegram>([
   'sendChatAction',
 ])
 
+interface InputFileLike {
+  source?: unknown
+  url?: unknown
+  filename?: string
+};
+
+const isInputFileLike = (value: unknown): value is InputFileLike => {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    ('source' in value || 'url' in value)
+  )
+};
+
 type FetchInitModel = Pick<
   RequestInit,
   | 'signal'
@@ -112,20 +126,32 @@ function includesMedia(payload: Record<string, unknown>) {
     if (key === 'link_preview_options') return false
 
     if (Array.isArray(value)) {
-      return value.some(
-        ({ media }) =>
-          media && typeof media === 'object' && (media.source || media.url)
-      )
-    }
-    return (
-      value &&
-      typeof value === 'object' &&
-      ((hasProp(value, 'source') && value.source) ||
-        (hasProp(value, 'url') && value.url) ||
-        (hasPropType(value, 'media', 'object') &&
-          ((hasProp(value.media, 'source') && value.media.source) ||
-            (hasProp(value.media, 'url') && value.media.url))))
-    )
+      return value.some((item) => {
+        if (item !== null && typeof item === 'object' && 'media' in item) {
+          return isInputFileLike(item.media)
+        }
+        return false
+      })
+    };
+
+    if (isInputFileLike(value)) {
+      return !!(value.source || value.url)
+    };
+
+    if (value !== null && typeof value === 'object' && hasProp(value, 'media')) {
+      return isInputFileLike(value.media)
+    }; 
+
+    return false;
+    // return (
+    //   value &&
+    //   typeof value === 'object' &&
+    //   ((hasProp(value, 'source') && value.source) ||
+    //     (hasProp(value, 'url') && value.url) ||
+    //     (hasPropType(value, 'media', 'object') &&
+    //       ((hasProp(value.media, 'source') && value.media.source) ||
+    //         (hasProp(value.media, 'url') && value.media.url))))
+    // )
   })
 }
 
@@ -270,19 +296,15 @@ async function attachFormValue(
       }),
     })
   }
-    if (
-        value &&
-        typeof value === 'object' &&
-        (hasProp(value, 'source') || hasProp(value, 'url')) &&
-        (typeof value.source !== 'undefined' ||
-            typeof value.url !== 'undefined')
-    ) {
-        return await attachFormMedia(form, value as InputFile, id, agent, fetch)
+  if (isInputFileLike(value)) {
+    if (typeof value.source !== 'undefined' || typeof value.url !== 'undefined') {
+      return await attachFormMedia(form, value as InputFile, id, agent, fetch)
     }
-    return form.addPart({
-        headers: { 'content-disposition': `form-data; name="${id}"` },
-        body: JSON.stringify(value),
-    })
+  };
+  return form.addPart({
+    headers: { 'content-disposition': `form-data; name="${id}"` },
+    body: JSON.stringify(value),
+  })
 }
 
 async function attachFormMedia(
@@ -428,10 +450,10 @@ class ApiClient {
 
     const config: RequestInit = includesMedia(payload)
       ? await buildFormDataConfig(
-          { method, ...payload },
-          options.attachmentAgent,
-          options.fetch
-        )
+        { method, ...payload },
+        options.attachmentAgent,
+        options.fetch
+      )
       : await buildJSONConfig(payload)
     const apiUrl = new URL(
       `./${options.apiMode}${token}${options.testEnv ? '/test' : ''}/${method}`,
