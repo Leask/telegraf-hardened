@@ -1,6 +1,5 @@
 import * as tg from '../types/typegram'
 import * as tt from '../../telegram-types'
-import AbortController from 'abort-controller'
 import ApiClient from './client'
 import d from 'debug'
 import { promisify } from 'util'
@@ -19,7 +18,7 @@ export class Polling {
     constructor(
         private readonly telegram: ApiClient,
         private readonly allowedUpdates: readonly tt.UpdateType[]
-    ) {}
+    ) { }
 
     private async *[Symbol.asyncIterator]() {
         debug('Starting long polling')
@@ -32,7 +31,7 @@ export class Polling {
                         offset: this.offset,
                         allowed_updates: this.allowedUpdates,
                     },
-                    this.abortController
+                    { signal: this.abortController.signal as AbortSignal }
                 )
                 const last = updates[updates.length - 1]
                 if (last !== undefined) {
