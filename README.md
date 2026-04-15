@@ -28,6 +28,13 @@ This fork exists and improves thanks to the amazing contributors:
 We are actively porting critical improvements that are stuck in the official Telegraf repository. 
 
 Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardened/issues/1)**
+### Key Improvements in this Fork already done:
+- ✅ **Zero-Dependency Network Layer:** Completely dropped `node-fetch` and `abort-controller`. Now using native **Node.js 18+ Fetch API** for maximum performance and security.
+- ✅ **Fail-Fast Security:** Integrated token validation and strict error handling to prevent state leaks.
+- ✅ **Community PRs:** Already merged some critical fixes from the community.
+- 🛠 **Future:** Native SOCKS5/TOR support and Telegram Stars (API 7.8) integration & stricter types.
+
+**Are you a Telegraf contributor?** If your PR is ignored upstream, [resubmit it here](https://github.com/siakinnik/telegraf-hardened/issues/1)!
 
 ## Introduction
 
