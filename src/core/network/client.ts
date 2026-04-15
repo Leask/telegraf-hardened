@@ -17,515 +17,520 @@ const { isStream } = MultipartStream
 import { Readable } from 'stream'
 
 const WEBHOOK_REPLY_METHOD_ALLOWLIST = new Set<keyof Telegram>([
-  'answerCallbackQuery',
-  'answerInlineQuery',
-  'deleteMessage',
-  'leaveChat',
-  'sendChatAction',
+    'answerCallbackQuery',
+    'answerInlineQuery',
+    'deleteMessage',
+    'leaveChat',
+    'sendChatAction',
 ])
 
 interface InputFileLike {
-  source?: unknown
-  url?: unknown
-  filename?: string
+    source?: unknown
+    url?: unknown
+    filename?: string
 }
 
 const isInputFileLike = (value: unknown): value is InputFileLike => {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    ('source' in value || 'url' in value)
-  )
+    return (
+        value !== null &&
+        typeof value === 'object' &&
+        ('source' in value || 'url' in value)
+    )
 }
 
 interface FetchInitModel extends Omit<RequestInit, 'body'> {
-  body?: RequestInit['body'] | MultipartStream | import('stream').Readable
-  agent?: ApiClient.Agent
-  timeout?: number
+    body?: RequestInit['body'] | MultipartStream | import('stream').Readable
+    agent?: ApiClient.Agent
+    timeout?: number
 }
 
 // type FetchModel = (
 //     url: URL | string,
 //     init: FetchInitModel
 // ) => Promise<ResponseNodeFetch>
-type FetchModel = typeof globalThis.fetch;
+type FetchModel = typeof globalThis.fetch
 
 namespace ApiClient {
-  export type Agent =
-    | http.Agent
-    | ((parsedUrl: URL) => http.Agent)
-    | undefined
-  export interface Options {
-    /**
-     * @deprecated Use `fetch` instead. This feature will be removed in future
-     * major versions of Telegraf in favour of custom fetch, because Telegraf
-     * will transition away from the node-fetch package to native platform fetch.
-     */
-    agent?: http.Agent
-    /**
-     * Agent for attaching files via URL.
-     * 1. Not all agents support both `http:` and `https:`.
-     * 2. When passing a function, create the agents once, outside of the function.
-     *    Creating new agent every request probably breaks `keepAlive`.
-     */
-    attachmentAgent?: Agent
-    apiRoot: string
-    /**
-     * @default 'bot'
-     * @see https://github.com/tdlight-team/tdlight-telegram-bot-api#user-mode
-     */
-    apiMode: 'bot' | 'user'
-    webhookReply: boolean
-    testEnv: boolean
-    fetch: FetchModel
-  }
+    export type Agent =
+        | http.Agent
+        | ((parsedUrl: URL) => http.Agent)
+        | undefined
+    export interface Options {
+        /**
+         * @deprecated Use `fetch` instead. This feature will be removed in future
+         * major versions of Telegraf in favour of custom fetch, because Telegraf
+         * will transition away from the node-fetch package to native platform fetch.
+         */
+        agent?: http.Agent
+        /**
+         * Agent for attaching files via URL.
+         * 1. Not all agents support both `http:` and `https:`.
+         * 2. When passing a function, create the agents once, outside of the function.
+         *    Creating new agent every request probably breaks `keepAlive`.
+         */
+        attachmentAgent?: Agent
+        apiRoot: string
+        /**
+         * @default 'bot'
+         * @see https://github.com/tdlight-team/tdlight-telegram-bot-api#user-mode
+         */
+        apiMode: 'bot' | 'user'
+        webhookReply: boolean
+        testEnv: boolean
+        fetch: FetchModel
+    }
 
-  export interface CallApiOptions {
-    signal?: AbortSignal
-  }
+    export interface CallApiOptions {
+        signal?: AbortSignal
+    }
 }
 
 const DEFAULT_EXTENSIONS: Record<string, string | undefined> = {
-  audio: 'mp3',
-  photo: 'jpg',
-  sticker: 'webp',
-  video: 'mp4',
-  animation: 'mp4',
-  video_note: 'mp4',
-  voice: 'ogg',
+    audio: 'mp3',
+    photo: 'jpg',
+    sticker: 'webp',
+    video: 'mp4',
+    animation: 'mp4',
+    video_note: 'mp4',
+    voice: 'ogg',
 }
 
 const DEFAULT_OPTIONS: ApiClient.Options = {
-  apiRoot: 'https://api.telegram.org',
-  apiMode: 'bot',
-  webhookReply: true,
-  agent: new https.Agent({
-    keepAlive: true,
-    keepAliveMsecs: 10000,
-  }),
-  attachmentAgent: undefined,
-  testEnv: false,
-  fetch: globalThis.fetch.bind(globalThis),
+    apiRoot: 'https://api.telegram.org',
+    apiMode: 'bot',
+    webhookReply: true,
+    agent: new https.Agent({
+        keepAlive: true,
+        keepAliveMsecs: 10000,
+    }),
+    attachmentAgent: undefined,
+    testEnv: false,
+    fetch: globalThis.fetch.bind(globalThis),
 }
 
 function includesMedia(payload: Record<string, unknown>) {
-  return Object.entries(payload).some(([key, value]) => {
-    if (key === 'link_preview_options') return false
+    return Object.entries(payload).some(([key, value]) => {
+        if (key === 'link_preview_options') return false
 
-    if (Array.isArray(value)) {
-      return value.some((item) => {
-        if (
-          item !== null &&
-          typeof item === 'object' &&
-          'media' in item
-        ) {
-          return isInputFileLike(item.media)
+        if (Array.isArray(value)) {
+            return value.some((item) => {
+                if (
+                    item !== null &&
+                    typeof item === 'object' &&
+                    'media' in item
+                ) {
+                    return isInputFileLike(item.media)
+                }
+                return false
+            })
         }
+
+        if (isInputFileLike(value)) {
+            return !!(value.source || value.url)
+        }
+
+        if (
+            value !== null &&
+            typeof value === 'object' &&
+            hasProp(value, 'media')
+        ) {
+            return isInputFileLike(value.media)
+        }
+
         return false
-      })
-    }
-
-    if (isInputFileLike(value)) {
-      return !!(value.source || value.url)
-    }
-
-    if (
-      value !== null &&
-      typeof value === 'object' &&
-      hasProp(value, 'media')
-    ) {
-      return isInputFileLike(value.media)
-    }
-
-    return false
-    // return (
-    //   value &&
-    //   typeof value === 'object' &&
-    //   ((hasProp(value, 'source') && value.source) ||
-    //     (hasProp(value, 'url') && value.url) ||
-    //     (hasPropType(value, 'media', 'object') &&
-    //       ((hasProp(value.media, 'source') && value.media.source) ||
-    //         (hasProp(value.media, 'url') && value.media.url))))
-    // )
-  })
+        // return (
+        //   value &&
+        //   typeof value === 'object' &&
+        //   ((hasProp(value, 'source') && value.source) ||
+        //     (hasProp(value, 'url') && value.url) ||
+        //     (hasPropType(value, 'media', 'object') &&
+        //       ((hasProp(value.media, 'source') && value.media.source) ||
+        //         (hasProp(value.media, 'url') && value.media.url))))
+        // )
+    })
 }
 
 function replacer(_: unknown, value: unknown) {
-  if (value == null) return undefined
-  return value
+    if (value == null) return undefined
+    return value
 }
 
 function buildJSONConfig(payload: unknown): Promise<FetchInitModel> {
-  return Promise.resolve({
-    method: 'POST',
-    compress: true,
-    headers: {
-      'content-type': 'application/json',
-      'connection': 'keep-alive',
-    },
-    body: JSON.stringify(payload, replacer),
-  })
+    return Promise.resolve({
+        method: 'POST',
+        compress: true,
+        headers: {
+            'content-type': 'application/json',
+            connection: 'keep-alive',
+        },
+        body: JSON.stringify(payload, replacer),
+    })
 }
 
 const FORM_DATA_JSON_FIELDS = [
-  'results',
-  'reply_markup',
-  'mask_position',
-  'shipping_options',
-  'errors',
+    'results',
+    'reply_markup',
+    'mask_position',
+    'shipping_options',
+    'errors',
 ] as const
 
 async function buildFormDataConfig(
-  payload: Opts<keyof Telegram>,
-  agent: ApiClient.Agent,
-  fetch: FetchModel
+    payload: Opts<keyof Telegram>,
+    agent: ApiClient.Agent,
+    fetch: FetchModel
 ): Promise<FetchInitModel> {
-  for (const field of FORM_DATA_JSON_FIELDS) {
-    if (hasProp(payload, field) && typeof payload[field] !== 'string') {
-      payload[field] = JSON.stringify(payload[field])
+    for (const field of FORM_DATA_JSON_FIELDS) {
+        if (hasProp(payload, field) && typeof payload[field] !== 'string') {
+            payload[field] = JSON.stringify(payload[field])
+        }
     }
-  }
-  const boundary = crypto.randomBytes(32).toString('hex')
-  const formData = new MultipartStream(boundary)
-  await Promise.all(
-    Object.keys(payload).map((key) =>
-      // @ts-expect-error payload[key] can obviously index payload, but TS doesn't trust us
-      attachFormValue(formData, key, payload[key], agent, fetch)
+    const boundary = crypto.randomBytes(32).toString('hex')
+    const formData = new MultipartStream(boundary)
+    await Promise.all(
+        Object.keys(payload).map((key) =>
+            // @ts-expect-error payload[key] can obviously index payload, but TS doesn't trust us
+            attachFormValue(formData, key, payload[key], agent, fetch)
+        )
     )
-  )
-  return {
-    method: 'POST',
-    headers: {
-      'content-type': `multipart/form-data; boundary=${boundary}`,
-      connection: 'keep-alive',
-    },
-    body: formData,
-  }
+    return {
+        method: 'POST',
+        headers: {
+            'content-type': `multipart/form-data; boundary=${boundary}`,
+            connection: 'keep-alive',
+        },
+        body: formData,
+    }
 }
 
 async function attachFormValue(
-  form: MultipartStream,
-  id: string,
-  value: unknown,
-  agent: ApiClient.Agent,
-  fetch: FetchModel
+    form: MultipartStream,
+    id: string,
+    value: unknown,
+    agent: ApiClient.Agent,
+    fetch: FetchModel
 ) {
-  if (value == null) {
-    return
-  }
-  if (
-    typeof value === 'string' ||
-    typeof value === 'boolean' ||
-    typeof value === 'number'
-  ) {
-    form.addPart({
-      headers: { 'content-disposition': `form-data; name="${id}"` },
-      body: `${value}`,
-    })
-    return
-  }
-  if (id === 'thumb' || id === 'thumbnail') {
-    const attachmentId = crypto.randomBytes(16).toString('hex')
-    await attachFormMedia(
-      form,
-      value as InputFile,
-      attachmentId,
-      agent,
-      fetch
-    )
-    return form.addPart({
-      headers: { 'content-disposition': `form-data; name="${id}"` },
-      body: `attach://${attachmentId}`,
-    })
-  }
-  if (Array.isArray(value)) {
-    const items = await Promise.all(
-      value.map(async (item) => {
-        if (typeof item.media !== 'object') {
-          return await Promise.resolve(item)
-        }
+    if (value == null) {
+        return
+    }
+    if (
+        typeof value === 'string' ||
+        typeof value === 'boolean' ||
+        typeof value === 'number'
+    ) {
+        form.addPart({
+            headers: { 'content-disposition': `form-data; name="${id}"` },
+            body: `${value}`,
+        })
+        return
+    }
+    if (id === 'thumb' || id === 'thumbnail') {
         const attachmentId = crypto.randomBytes(16).toString('hex')
         await attachFormMedia(
-          form,
-          item.media,
-          attachmentId,
-          agent,
-          fetch
-        )
-        const thumb = item.thumb ?? item.thumbnail
-        if (typeof thumb === 'object') {
-          const thumbAttachmentId = crypto
-            .randomBytes(16)
-            .toString('hex')
-          await attachFormMedia(
             form,
-            thumb,
-            thumbAttachmentId,
+            value as InputFile,
+            attachmentId,
             agent,
             fetch
-          )
-          return {
-            ...item,
-            media: `attach://${attachmentId}`,
-            thumbnail: `attach://${thumbAttachmentId}`,
-          }
-        }
-        return { ...item, media: `attach://${attachmentId}` }
-      })
-    )
-    return form.addPart({
-      headers: { 'content-disposition': `form-data; name="${id}"` },
-      body: JSON.stringify(items),
-    })
-  }
-  if (
-    value &&
-    typeof value === 'object' &&
-    hasProp(value, 'media') &&
-    hasProp(value, 'type') &&
-    typeof value.media !== 'undefined' &&
-    typeof value.type !== 'undefined'
-  ) {
-    const attachmentId = crypto.randomBytes(16).toString('hex')
-    await attachFormMedia(
-      form,
-      value.media as InputFile,
-      attachmentId,
-      agent,
-      fetch
-    )
-    if (hasProp(value, 'thumbnail') && value.thumbnail) {
-      const thumbnailId = crypto.randomBytes(16).toString('hex')
-      await attachFormMedia(
-        form,
-        value.thumbnail as InputFile,
-        thumbnailId,
-        agent,
-        fetch
-      )
-      value.thumbnail = `attach://${thumbnailId}`
+        )
+        return form.addPart({
+            headers: { 'content-disposition': `form-data; name="${id}"` },
+            body: `attach://${attachmentId}`,
+        })
     }
-    return form.addPart({
-      headers: { 'content-disposition': `form-data; name="${id}"` },
-      body: JSON.stringify({
-        ...value,
-        media: `attach://${attachmentId}`,
-      }),
-    })
-  }
-  if (isInputFileLike(value)) {
+    if (Array.isArray(value)) {
+        const items = await Promise.all(
+            value.map(async (item) => {
+                if (typeof item.media !== 'object') {
+                    return await Promise.resolve(item)
+                }
+                const attachmentId = crypto.randomBytes(16).toString('hex')
+                await attachFormMedia(
+                    form,
+                    item.media,
+                    attachmentId,
+                    agent,
+                    fetch
+                )
+                const thumb = item.thumb ?? item.thumbnail
+                if (typeof thumb === 'object') {
+                    const thumbAttachmentId = crypto
+                        .randomBytes(16)
+                        .toString('hex')
+                    await attachFormMedia(
+                        form,
+                        thumb,
+                        thumbAttachmentId,
+                        agent,
+                        fetch
+                    )
+                    return {
+                        ...item,
+                        media: `attach://${attachmentId}`,
+                        thumbnail: `attach://${thumbAttachmentId}`,
+                    }
+                }
+                return { ...item, media: `attach://${attachmentId}` }
+            })
+        )
+        return form.addPart({
+            headers: { 'content-disposition': `form-data; name="${id}"` },
+            body: JSON.stringify(items),
+        })
+    }
     if (
-      typeof value.source !== 'undefined' ||
-      typeof value.url !== 'undefined'
+        value &&
+        typeof value === 'object' &&
+        hasProp(value, 'media') &&
+        hasProp(value, 'type') &&
+        typeof value.media !== 'undefined' &&
+        typeof value.type !== 'undefined'
     ) {
-      return await attachFormMedia(
-        form,
-        value as InputFile,
-        id,
-        agent,
-        fetch
-      )
+        const attachmentId = crypto.randomBytes(16).toString('hex')
+        await attachFormMedia(
+            form,
+            value.media as InputFile,
+            attachmentId,
+            agent,
+            fetch
+        )
+        if (hasProp(value, 'thumbnail') && value.thumbnail) {
+            const thumbnailId = crypto.randomBytes(16).toString('hex')
+            await attachFormMedia(
+                form,
+                value.thumbnail as InputFile,
+                thumbnailId,
+                agent,
+                fetch
+            )
+            value.thumbnail = `attach://${thumbnailId}`
+        }
+        return form.addPart({
+            headers: { 'content-disposition': `form-data; name="${id}"` },
+            body: JSON.stringify({
+                ...value,
+                media: `attach://${attachmentId}`,
+            }),
+        })
     }
-  }
-  return form.addPart({
-    headers: { 'content-disposition': `form-data; name="${id}"` },
-    body: JSON.stringify(value),
-  })
+    if (isInputFileLike(value)) {
+        if (
+            typeof value.source !== 'undefined' ||
+            typeof value.url !== 'undefined'
+        ) {
+            return await attachFormMedia(
+                form,
+                value as InputFile,
+                id,
+                agent,
+                fetch
+            )
+        }
+    }
+    return form.addPart({
+        headers: { 'content-disposition': `form-data; name="${id}"` },
+        body: JSON.stringify(value),
+    })
 }
 
 async function attachFormMedia(
-  form: MultipartStream,
-  media: InputFile,
-  id: string,
-  agent: ApiClient.Agent,
-  fetch: FetchModel
+    form: MultipartStream,
+    media: InputFile,
+    id: string,
+    agent: ApiClient.Agent,
+    fetch: FetchModel
 ) {
-  let fileName = media.filename ?? `${id}.${DEFAULT_EXTENSIONS[id] ?? 'dat'}`
-  if ('url' in media && media.url !== undefined) {
-    const timeout = 500_000 // ms
-    const res = await fetch(media.url, ({
-      agent,
-      signal: AbortSignal.timeout(timeout)
-    } as unknown) as RequestInit);
+    let fileName = media.filename ?? `${id}.${DEFAULT_EXTENSIONS[id] ?? 'dat'}`
+    if ('url' in media && media.url !== undefined) {
+        const timeout = 500_000 // ms
+        const res = await fetch(media.url, {
+            agent,
+            signal: AbortSignal.timeout(timeout),
+        } as unknown as RequestInit)
 
-    let body: Readable | string = ''
-    if (res.body) {
-      body = Readable.fromWeb(res.body as import('stream/web').ReadableStream)
-    };
+        let body: Readable | string = ''
+        if (res.body) {
+            body = Readable.fromWeb(
+                res.body as import('stream/web').ReadableStream
+            )
+        }
 
-    return form.addPart({
-      headers: {
-        'content-disposition': `form-data; name="${id}"; filename="${fileName}"`,
-      },
-      body: body,
-    })
-  }
-  if ('source' in media && media.source) {
-    let mediaSource = media.source
-    if (typeof media.source === 'string') {
-      const source = await realpath(media.source)
-      if ((await stat(source)).isFile()) {
-        fileName = media.filename ?? path.basename(media.source)
-        mediaSource = await fs.createReadStream(media.source)
-      } else {
-        throw new TypeError(
-          `Unable to upload '${media.source}', not a file`
-        )
-      }
+        return form.addPart({
+            headers: {
+                'content-disposition': `form-data; name="${id}"; filename="${fileName}"`,
+            },
+            body: body,
+        })
     }
-    if (isStream(mediaSource) || Buffer.isBuffer(mediaSource)) {
-      form.addPart({
-        headers: {
-          'content-disposition': `form-data; name="${id}"; filename="${fileName}"`,
-        },
-        body: mediaSource,
-      })
+    if ('source' in media && media.source) {
+        let mediaSource = media.source
+        if (typeof media.source === 'string') {
+            const source = await realpath(media.source)
+            if ((await stat(source)).isFile()) {
+                fileName = media.filename ?? path.basename(media.source)
+                mediaSource = await fs.createReadStream(media.source)
+            } else {
+                throw new TypeError(
+                    `Unable to upload '${media.source}', not a file`
+                )
+            }
+        }
+        if (isStream(mediaSource) || Buffer.isBuffer(mediaSource)) {
+            form.addPart({
+                headers: {
+                    'content-disposition': `form-data; name="${id}"; filename="${fileName}"`,
+                },
+                body: mediaSource,
+            })
+        }
     }
-  }
 }
 
 async function answerToWebhook(
-  response: Response,
-  payload: Opts<keyof Telegram>,
-  options: ApiClient.Options
+    response: Response,
+    payload: Opts<keyof Telegram>,
+    options: ApiClient.Options
 ): Promise<true> {
-  if (!includesMedia(payload)) {
-    if (!response.headersSent) {
-      response.setHeader('content-type', 'application/json')
+    if (!includesMedia(payload)) {
+        if (!response.headersSent) {
+            response.setHeader('content-type', 'application/json')
+        }
+        response.end(JSON.stringify(payload), 'utf-8')
+        return true
     }
-    response.end(JSON.stringify(payload), 'utf-8')
-    return true
-  }
 
-  const { headers, body } = await buildFormDataConfig(
-    payload,
-    options.attachmentAgent,
-    options.fetch
-  )
-  if (!response.headersSent) {
-    const rawHeaders = headers as unknown as Record<string, string>
-    for (const [key, value] of Object.entries(rawHeaders)) {
-      response.setHeader(key, value)
-    };
-  };
-  await new Promise((resolve) => {
-    response.on('finish', resolve)
-    if (body && typeof body === 'object' && 'pipe' in body) {
-      (body as import('stream').Readable).pipe(response)
-    } else {
-      response.end(body)
-      resolve(true)
+    const { headers, body } = await buildFormDataConfig(
+        payload,
+        options.attachmentAgent,
+        options.fetch
+    )
+    if (!response.headersSent) {
+        const rawHeaders = headers as unknown as Record<string, string>
+        for (const [key, value] of Object.entries(rawHeaders)) {
+            response.setHeader(key, value)
+        }
     }
-  });
-  return true;
+    await new Promise((resolve) => {
+        response.on('finish', resolve)
+        if (body && typeof body === 'object' && 'pipe' in body) {
+            ;(body as import('stream').Readable).pipe(response)
+        } else {
+            response.end(body)
+            resolve(true)
+        }
+    })
+    return true
 }
 
 function redactToken(error: Error): never {
-  error.message = error.message.replace(
-    /\/(bot|user)(\d+):[^/]+\//,
-    '/$1$2:[REDACTED]/'
-  )
-  throw error
+    error.message = error.message.replace(
+        /\/(bot|user)(\d+):[^/]+\//,
+        '/$1$2:[REDACTED]/'
+    )
+    throw error
 }
 
 type Response = http.ServerResponse
 class ApiClient {
-  readonly options: ApiClient.Options
+    readonly options: ApiClient.Options
 
-  constructor(
-    readonly token: string,
-    options?: Partial<ApiClient.Options>,
-    private readonly response?: Response
-  ) {
-    this.options = {
-      ...DEFAULT_OPTIONS,
-      ...compactOptions(options),
-    }
-    if (this.options.apiRoot.startsWith('http://')) {
-      this.options.agent = undefined
-    }
-  }
-
-  /**
-   * If set to `true`, first _eligible_ call will avoid performing a POST request.
-   * Note that such a call:
-   * 1. cannot report errors or return meaningful values,
-   * 2. resolves before bot API has a chance to process it,
-   * 3. prematurely confirms the update as processed.
-   *
-   * https://core.telegram.org/bots/faq#how-can-i-make-requests-in-response-to-updates
-   * https://github.com/telegraf/telegraf/pull/1250
-   */
-  set webhookReply(enable: boolean) {
-    this.options.webhookReply = enable
-  }
-
-  get webhookReply() {
-    return this.options.webhookReply
-  }
-
-  async callApi<M extends keyof Telegram>(
-    method: M,
-    payload: Opts<M>,
-    { signal }: ApiClient.CallApiOptions = {}
-  ): Promise<ReturnType<Telegram[M]>> {
-    const { token, options, response } = this
-
-    if (
-      options.webhookReply &&
-      response?.writableEnded === false &&
-      WEBHOOK_REPLY_METHOD_ALLOWLIST.has(method)
+    constructor(
+        readonly token: string,
+        options?: Partial<ApiClient.Options>,
+        private readonly response?: Response
     ) {
-      debug('Call via webhook', method, payload)
-      // @ts-expect-error using webhookReply is an optimisation that doesn't respond with normal result
-      // up to the user to deal with this
-      return await answerToWebhook(
-        response,
-        { method, ...payload },
-        options
-      )
+        this.options = {
+            ...DEFAULT_OPTIONS,
+            ...compactOptions(options),
+        }
+        if (this.options.apiRoot.startsWith('http://')) {
+            this.options.agent = undefined
+        }
     }
 
-    if (!token) {
-      throw new TelegramError({
-        error_code: 401,
-        description: 'Bot Token is required',
-      })
+    /**
+     * If set to `true`, first _eligible_ call will avoid performing a POST request.
+     * Note that such a call:
+     * 1. cannot report errors or return meaningful values,
+     * 2. resolves before bot API has a chance to process it,
+     * 3. prematurely confirms the update as processed.
+     *
+     * https://core.telegram.org/bots/faq#how-can-i-make-requests-in-response-to-updates
+     * https://github.com/telegraf/telegraf/pull/1250
+     */
+    set webhookReply(enable: boolean) {
+        this.options.webhookReply = enable
     }
 
-    debug('HTTP call', method, payload)
+    get webhookReply() {
+        return this.options.webhookReply
+    }
 
-    const config: FetchInitModel = includesMedia(payload)
-      ? await buildFormDataConfig(
-        { method, ...payload },
-        options.attachmentAgent,
-        options.fetch
-      )
-      : await buildJSONConfig(payload)
-    const apiUrl = new URL(
-      `./${options.apiMode}${token}${options.testEnv ? '/test' : ''
-      }/${method}`,
-      options.apiRoot
-    )
-    config.agent = options.agent
-    
-    config.signal = signal as AbortSignal
-    config.timeout = 500_000 // ms
-    const res = await this.options.fetch(apiUrl, config as RequestInit).catch(redactToken);
-    if (res.status >= 500) {
-      const errorPayload = {
-        error_code: res.status,
-        description: res.statusText,
-      }
-      throw new TelegramError(errorPayload, { method, payload })
+    async callApi<M extends keyof Telegram>(
+        method: M,
+        payload: Opts<M>,
+        { signal }: ApiClient.CallApiOptions = {}
+    ): Promise<ReturnType<Telegram[M]>> {
+        const { token, options, response } = this
+
+        if (
+            options.webhookReply &&
+            response?.writableEnded === false &&
+            WEBHOOK_REPLY_METHOD_ALLOWLIST.has(method)
+        ) {
+            debug('Call via webhook', method, payload)
+            // @ts-expect-error using webhookReply is an optimisation that doesn't respond with normal result
+            // up to the user to deal with this
+            return await answerToWebhook(
+                response,
+                { method, ...payload },
+                options
+            )
+        }
+
+        if (!token) {
+            throw new TelegramError({
+                error_code: 401,
+                description: 'Bot Token is required',
+            })
+        }
+
+        debug('HTTP call', method, payload)
+
+        const config: FetchInitModel = includesMedia(payload)
+            ? await buildFormDataConfig(
+                  { method, ...payload },
+                  options.attachmentAgent,
+                  options.fetch
+              )
+            : await buildJSONConfig(payload)
+        const apiUrl = new URL(
+            `./${options.apiMode}${token}${
+                options.testEnv ? '/test' : ''
+            }/${method}`,
+            options.apiRoot
+        )
+        config.agent = options.agent
+
+        config.signal = signal as AbortSignal
+        config.timeout = 500_000 // ms
+        const res = await this.options
+            .fetch(apiUrl, config as RequestInit)
+            .catch(redactToken)
+        if (res.status >= 500) {
+            const errorPayload = {
+                error_code: res.status,
+                description: res.statusText,
+            }
+            throw new TelegramError(errorPayload, { method, payload })
+        }
+        const data = await res.json()
+        if (!data.ok) {
+            debug('API call failed', data)
+            throw new TelegramError(data, { method, payload })
+        }
+        return data.result
     }
-    const data = await res.json()
-    if (!data.ok) {
-      debug('API call failed', data)
-      throw new TelegramError(data, { method, payload })
-    }
-    return data.result
-  }
 }
 
 export default ApiClient
