@@ -60,8 +60,8 @@ Telegraf is a library that makes it simple for you to develop your own Telegram 
 ### Example
 
 ```js
-const { Telegraf } = require('telegraf')
-const { message } = require('telegraf/filters')
+const { Telegraf } = require('telegraf-hardened')
+const { message } = require('telegraf-hardened/filters')
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -80,7 +80,7 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'))
 ```
 
 ```js
-const { Telegraf } = require('telegraf')
+const { Telegraf } = require('telegraf-hardened')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 (async => {
