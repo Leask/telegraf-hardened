@@ -48,7 +48,6 @@ interface FetchInitModel extends Omit<RequestInit, 'body'> {
 //     url: URL | string,
 //     init: FetchInitModel
 // ) => Promise<ResponseNodeFetch>
-// Замени старые типы на эти:
 type FetchModel = typeof globalThis.fetch;
 
 namespace ApiClient {
