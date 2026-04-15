@@ -20,7 +20,7 @@ Telegraf-hardened - Сommunity-led fork of Telegraf.js. Focusing on stability, s
 
 This fork exists and improves thanks to the amazing contributors:
 
--   **[@BataevDaniil](https://github.com/BataevDaniil)** — Architect of the new `fetch` layer.
+-   **[@BataevDaniil](https://github.com/BataevDaniil)** — Architect of the `custom-fetch` feature.
 -   **[@clansty](https://github.com/clansty)** — Critical JSON serialization and thumbnail fixes.
 
 ## 🛠 Roadmap & Community Fixes
