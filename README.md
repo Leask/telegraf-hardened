@@ -23,6 +23,12 @@ This fork exists and improves thanks to the amazing contributors:
 -   **[@BataevDaniil](https://github.com/BataevDaniil)** — Architect of the new `fetch` layer.
 -   **[@clansty](https://github.com/clansty)** — Critical JSON serialization and thumbnail fixes.
 
+## 🛠 Roadmap & Community Fixes
+
+We are actively porting critical improvements that are stuck in the official Telegraf repository. 
+
+Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardened/issues/1)**
+
 ## Introduction
 
 Bots are special [Telegram](https://telegram.org) accounts designed to handle messages automatically.
