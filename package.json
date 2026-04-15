@@ -97,7 +97,6 @@
         "abort-controller": "^3.0.0",
         "debug": "^4.3.5",
         "mri": "^1.2.0",
-        "node-fetch": "^2.7.0",
         "p-timeout": "^4.1.0",
         "safe-compare": "^1.1.4",
         "sandwich-stream": "^2.0.2"
@@ -105,7 +104,6 @@
     "devDependencies": {
         "@types/debug": "^4.1.8",
         "@types/node": "^20.4.2",
-        "@types/node-fetch": "^2.6.2",
         "@types/safe-compare": "^1.1.0",
         "@typescript-eslint/eslint-plugin": "^6.21.0",
         "@typescript-eslint/parser": "^6.21.0",
