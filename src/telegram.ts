@@ -475,7 +475,7 @@ export class Telegram extends ApiClient {
             chat_id: chatId,
             type: 'regular',
             question,
-            options,
+            options: options.map((text) => ({ text })),
             ...extra,
         })
     }
@@ -496,7 +496,7 @@ export class Telegram extends ApiClient {
             chat_id: chatId,
             type: 'quiz',
             question,
-            options,
+            options: options.map((text) => ({ text })),
             ...extra,
         })
     }
@@ -884,7 +884,7 @@ export class Telegram extends ApiClient {
             inline_message_id: inlineMessageId,
             ...extra,
             ...t,
-        })
+        } as any)
     }
 
     /**
@@ -1335,7 +1335,7 @@ export class Telegram extends ApiClient {
             name,
             user_id: userId,
             thumbnail,
-        })
+        } as any)
     }
 
     setStickerMaskPosition(sticker: string, mask_position?: tg.MaskPosition) {

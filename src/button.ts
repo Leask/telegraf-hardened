@@ -10,21 +10,21 @@ type Hideable<B> = B & { hide: boolean }
 export function text(
     text: string,
     hide = false
-): Hideable<KeyboardButton.CommonButton> {
-    return { text, hide }
+): Hideable<KeyboardButton.Common> {
+    return { text, hide } // as Hideable<KeyboardButton.Common>
 }
 
 export function contactRequest(
     text: string,
     hide = false
-): Hideable<KeyboardButton.RequestContactButton> {
+): Hideable<KeyboardButton.RequestContact> {
     return { text, request_contact: true, hide }
 }
 
 export function locationRequest(
     text: string,
     hide = false
-): Hideable<KeyboardButton.RequestLocationButton> {
+): Hideable<KeyboardButton.RequestLocation> {
     return { text, request_location: true, hide }
 }
 
@@ -32,7 +32,7 @@ export function pollRequest(
     text: string,
     type?: 'quiz' | 'regular',
     hide = false
-): Hideable<KeyboardButton.RequestPollButton> {
+): Hideable<KeyboardButton.RequestPoll> {
     return { text, request_poll: { type }, hide }
 }
 
@@ -42,7 +42,7 @@ export function userRequest(
     request_id: number,
     extra?: Omit<KeyboardButtonRequestUsers, 'request_id' | 'text'>,
     hide = false
-): Hideable<KeyboardButton.RequestUsersButton> {
+): Hideable<KeyboardButton.RequestUsers> {
     return {
         text,
         request_users: { request_id, ...extra },
@@ -59,7 +59,7 @@ export function botRequest(
         'request_id' | 'user_is_bot' | 'text'
     >,
     hide = false
-): Hideable<KeyboardButton.RequestUsersButton> {
+): Hideable<KeyboardButton.RequestUsers> {
     return {
         text,
         request_users: { request_id, user_is_bot: true, ...extra },
@@ -67,18 +67,18 @@ export function botRequest(
     }
 }
 
-type KeyboardButtonRequestGroup = Omit<
-    KeyboardButtonRequestChat,
-    'request_id' | 'chat_is_channel'
->
+// type KeyboardButtonRequestGroup = Omit<
+//     KeyboardButtonRequestChat,
+//     'request_id' | 'chat_is_channel'
+// >
 
 export function groupRequest(
     text: string,
     /** Must fit in a signed 32 bit int */
     request_id: number,
-    extra?: KeyboardButtonRequestGroup,
+    extra?: KeyboardButtonRequestChat,
     hide = false
-): Hideable<KeyboardButton.RequestChatButton> {
+): Hideable<KeyboardButton.RequestChat> {
     return {
         text,
         request_chat: { request_id, chat_is_channel: false, ...extra },
@@ -97,7 +97,7 @@ export function channelRequest(
     request_id: number,
     extra?: KeyboardButtonRequestChannel,
     hide = false
-): Hideable<KeyboardButton.RequestChatButton> {
+): Hideable<KeyboardButton.RequestChat> {
     return {
         text,
         request_chat: { request_id, chat_is_channel: true, ...extra },
