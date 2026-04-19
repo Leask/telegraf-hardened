@@ -39,7 +39,9 @@ Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardene
         Performs an actual network request to Telegram via getMe to verify the token and pre-populate botInfo.
         Throws a descriptive 401 Unauthorized error if the token is revoked or invalid.
         Automatically populates bot.botInfo on success.
--   🛠 **Future:** Native SOCKS5/TOR support and Telegram Stars (API 7.8) integration & stricter types.
+-   🛠 **Future:** Native SOCKS5/TOR support and Telegram Stars (new API till 7.8 support) integration & stricter types.
+-   ✅ **Native SOCKS5/TOR Support:** Built-in support for SOCKS4/5 and Tor proxies using `undici` and `socks`. No more external fetch-wrappers needed.
+-   ✅ **Zero-Dependency Network Layer:** Completely dropped `node-fetch`. Now using native **Node.js 18+ Fetch API** (via `undici` dispatcher) for maximum performance.
 
 **Are you a Telegraf contributor?** If your PR is ignored upstream, [resubmit it here](https://github.com/siakinnik/telegraf-hardened/issues/1)!
 
@@ -76,6 +78,23 @@ Users can interact with bots by sending them command messages in private or grou
 These accounts serve as an interface for code running somewhere on your server.
 
 Telegraf is a library that makes it simple for you to develop your own Telegram bots using JavaScript or [TypeScript](https://www.typescriptlang.org/).
+
+## 🔌 Proxy Support (SOCKS/HTTP)
+
+Telegraf-hardened supports SOCKS4, SOCKS5 (including Tor), and HTTP proxies out of the box.
+
+```js
+const { Telegraf } = require('telegraf-hardened')
+
+const bot = new Telegraf(process.env.BOT_TOKEN, {
+    telegram: {
+        proxy: 'socks5://127.0.0.1:9050', // Tor default port
+    },
+})
+
+// For authenticated proxies:
+// proxy: '[http://user:pass@1.2.3.4:8080](http://user:pass@1.2.3.4:8080)'
+```
 
 ### Features
 
