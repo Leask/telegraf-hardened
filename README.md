@@ -38,6 +38,12 @@ Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardene
 
 **Are you a Telegraf contributor?** If your PR is ignored upstream, [resubmit it here](https://github.com/siakinnik/telegraf-hardened/issues/1)!
 
+## ⚠️ Breaking Changes
+
+### **setStickerSetThumbnail**: Method signature updated to align with the latest Bot API requirements.
+- New parameter: format (mandatory) is now required as the third argument.
+- Reason: Telegram Bot API now strictly distinguishes between sticker formats (static, animated, video) for thumbnails.
+
 ## Introduction
 
 Bots are special [Telegram](https://telegram.org) accounts designed to handle messages automatically.
