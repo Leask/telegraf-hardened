@@ -1,6 +1,7 @@
 /* eslint @typescript-eslint/restrict-template-expressions: [ "error", { "allowNumber": true, "allowBoolean": true } ] */
-import { SocksProxyAgent } from 'socks-proxy-agent'
-import { ProxyAgent } from 'undici'
+import { SocksClient, SocksProxy } from 'socks'
+import { Agent, ProxyAgent, Dispatcher } from 'undici'
+import { URL } from 'url'
 
 export type ProxyProtocol = 'http' | 'https' | 'socks' | 'socks5' | 'socks4'
 
@@ -10,27 +11,50 @@ export interface NetworkOptions {
 }
 
 export class FetchClient {
-    private readonly agent?: SocksProxyAgent | ProxyAgent
+    private readonly dispatcher?: Dispatcher
 
     constructor(options: NetworkOptions = {}) {
-        if (options.proxy) {
-            const protocol = new URL(options.proxy).protocol.replace(
-                ':',
-                ''
-            ) as ProxyProtocol
+        if (!options.proxy) return
 
-            if (protocol.startsWith('socks')) {
-                this.agent = new SocksProxyAgent(options.proxy)
-            } else {
-                this.agent = new ProxyAgent(options.proxy)
+        const parsedProxy = new URL(options.proxy)
+        const protocol = parsedProxy.protocol.replace(':', '') as ProxyProtocol
+
+        if (protocol.startsWith('socks')) {
+            const proxyOptions: SocksProxy = {
+                host: parsedProxy.hostname,
+                port: parseInt(parsedProxy.port),
+                type: protocol.includes('5') ? 5 : 4,
             }
+
+            if (parsedProxy.username) {
+                proxyOptions.userId = decodeURIComponent(parsedProxy.username)
+                proxyOptions.password = decodeURIComponent(parsedProxy.password)
+            }
+
+            this.dispatcher = new Agent({
+                connect: async (opts, callback) => {
+                    try {
+                        const { socket } = await SocksClient.createConnection({
+                            proxy: proxyOptions,
+                            destination: {
+                                host: opts.hostname,
+                                port: parseInt(opts.port!),
+                            },
+                            command: 'connect',
+                        })
+                        callback(null, socket)
+                    } catch (err) {
+                        callback(err as Error, null)
+                    }
+                },
+            })
+        } else {
+            this.dispatcher = new ProxyAgent(options.proxy)
         }
     }
-
     public get fetch(): typeof globalThis.fetch {
         return (url, init) => {
             let signal = init?.signal
-
             if (
                 !signal &&
                 init &&
@@ -39,11 +63,10 @@ export class FetchClient {
             ) {
                 signal = AbortSignal.timeout(init.timeout)
             }
-
             return globalThis.fetch(url, {
                 ...init,
-                // @ts-ignore: dispatcher
-                dispatcher: this.agent,
+                // @ts-ignore: undici dispatcher support
+                dispatcher: this.dispatcher,
                 signal: signal,
             })
         }
