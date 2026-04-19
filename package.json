@@ -93,7 +93,7 @@
     },
     "types": "./typings/index.d.ts",
     "dependencies": {
-        "@telegraf/types": "telegraf-hardened/types#master",
+        "@telegraf/types": "github:telegraf-hardened/types",
         "abort-controller": "^3.0.0",
         "debug": "^4.3.5",
         "mri": "^1.2.0",

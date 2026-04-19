@@ -878,13 +878,36 @@ export class Telegram extends ApiClient {
         extra?: tt.ExtraEditMessageText
     ) {
         const t = FmtString.normalise(text)
-        return this.callApi('editMessageText', {
-            chat_id: chatId,
-            message_id: messageId,
-            inline_message_id: inlineMessageId,
-            ...extra,
-            ...t,
-        } as any)
+        const base = { ...extra, ...t }
+
+        if (inlineMessageId !== undefined) {
+            return this.callApi('editMessageText', {
+                text: base.text,
+                entities: base.entities,
+                parse_mode: base.parse_mode,
+                reply_markup: base.reply_markup,
+                link_preview_options: base.link_preview_options,
+                business_connection_id: base.business_connection_id,
+                inline_message_id: inlineMessageId,
+            })
+        }
+
+        if (chatId !== undefined && messageId !== undefined) {
+            return this.callApi('editMessageText', {
+                text: base.text,
+                entities: base.entities,
+                parse_mode: base.parse_mode,
+                reply_markup: base.reply_markup,
+                link_preview_options: base.link_preview_options,
+                business_connection_id: base.business_connection_id,
+                chat_id: chatId,
+                message_id: messageId,
+            })
+        }
+
+        throw new Error(
+            'Telegram: editMessageText requires either inlineMessageId or chatId and messageId'
+        )
     }
 
     /**
@@ -1329,13 +1352,15 @@ export class Telegram extends ApiClient {
     setStickerSetThumbnail(
         name: string,
         userId: number,
+        format: tg.Opts<'setStickerSetThumbnail'>['format'],
         thumbnail?: tg.Opts<'setStickerSetThumbnail'>['thumbnail']
     ) {
         return this.callApi('setStickerSetThumbnail', {
             name,
             user_id: userId,
             thumbnail,
-        } as any)
+            format,
+        })
     }
 
     setStickerMaskPosition(sticker: string, mask_position?: tg.MaskPosition) {
