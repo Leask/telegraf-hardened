@@ -73,7 +73,7 @@ const { message } = require('telegraf-hardened/filters')
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-(async => {
+(async () => {
 await bot.validateTokenAsync();
 bot.start((ctx) => ctx.reply('Welcome'))
 bot.help((ctx) => ctx.reply('Send me a sticker'))
@@ -91,7 +91,7 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'))
 const { Telegraf } = require('telegraf-hardened')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
-(async => {
+(async () => {
 await bot.validateTokenAsync();
 bot.command('oldschool', (ctx) => ctx.reply('Hello'))
 bot.command('hipster', Telegraf.reply('λ'))
