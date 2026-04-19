@@ -34,11 +34,22 @@ Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardene
 -   ✅ **Zero-Dependency Network Layer:** Completely dropped `node-fetch` and `abort-controller`. Now using native **Node.js 18+ Fetch API** for maximum performance and security.
 -   ✅ **Fail-Fast Security:** Integrated token validation and strict error handling to prevent state leaks.
 -   ✅ **Community PRs:** Already merged some critical fixes from the community.
+-   **New Features**
+    -   **bot.validateTokenAsync()**
+        Performs an actual network request to Telegram via getMe to verify the token and pre-populate botInfo.
+        Throws a descriptive 401 Unauthorized error if the token is revoked or invalid.
+        Automatically populates bot.botInfo on success.
 -   🛠 **Future:** Native SOCKS5/TOR support and Telegram Stars (API 7.8) integration & stricter types.
 
 **Are you a Telegraf contributor?** If your PR is ignored upstream, [resubmit it here](https://github.com/siakinnik/telegraf-hardened/issues/1)!
 
 ## ⚠️ Breaking Changes
+
+## Class methods
+#### **Telegraf Constructor (Fail-Fast Validation)**
+- **Change**: Added synchronous token validation directly in the constructor.
+- **Impact**: If you pass `undefined`, an empty string, or a malformed token (missing `:`), the constructor will now **throw an Error immediately**. 
+- **Reason**: In original Telegraf, a bot could be instantiated with an invalid token and only fail much later during `launch()` or the first API call. We catch this at the earliest possible stage.
 
 ### Telegram API Methods
 
