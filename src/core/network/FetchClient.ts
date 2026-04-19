@@ -2,6 +2,7 @@
 import { SocksClient, SocksProxy } from 'socks'
 import { Agent, ProxyAgent, Dispatcher } from 'undici'
 import { URL } from 'url'
+import * as tls from 'tls'
 
 export type ProxyProtocol = 'http' | 'https' | 'socks' | 'socks5' | 'socks4'
 
@@ -18,6 +19,18 @@ export class FetchClient {
 
         const parsedProxy = new URL(options.proxy)
         const protocol = parsedProxy.protocol.replace(':', '') as ProxyProtocol
+        if (!options.proxy) return
+
+        const proxyOptions: SocksProxy = {
+            host: parsedProxy.hostname,
+            port: parseInt(parsedProxy.port),
+            type: protocol.includes('5') ? 5 : 4,
+        }
+
+        if (parsedProxy.username) {
+            proxyOptions.userId = decodeURIComponent(parsedProxy.username)
+            proxyOptions.password = decodeURIComponent(parsedProxy.password)
+        }
 
         if (protocol.startsWith('socks')) {
             const proxyOptions: SocksProxy = {
@@ -32,17 +45,35 @@ export class FetchClient {
             }
 
             this.dispatcher = new Agent({
+                allowH2: false,
                 connect: async (opts, callback) => {
                     try {
                         const { socket } = await SocksClient.createConnection({
                             proxy: proxyOptions,
                             destination: {
                                 host: opts.hostname,
-                                port: parseInt(opts.port!),
+                                port: opts.port
+                                    ? parseInt(opts.port.toString(), 10)
+                                    : 443,
                             },
                             command: 'connect',
                         })
-                        callback(null, socket)
+
+                        if (opts.protocol === 'https:') {
+                            const tlsSocket = tls.connect(
+                                {
+                                    socket: socket,
+                                    servername: opts.hostname,
+                                },
+                                () => {
+                                    callback(null, tlsSocket)
+                                }
+                            )
+
+                            tlsSocket.on('error', (err) => callback(err, null))
+                        } else {
+                            callback(null, socket)
+                        }
                     } catch (err) {
                         callback(err as Error, null)
                     }
