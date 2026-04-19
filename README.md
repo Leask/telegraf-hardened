@@ -40,9 +40,18 @@ Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardene
 
 ## ⚠️ Breaking Changes
 
-### **setStickerSetThumbnail**: Method signature updated to align with the latest Bot API requirements.
-- New parameter: format (mandatory) is now required as the third argument.
-- Reason: Telegram Bot API now strictly distinguishes between sticker formats (static, animated, video) for thumbnails.
+### Telegram API Methods
+
+#### **setStickerSetThumbnail**
+Method signature updated to align with the latest Bot API requirements.
+- **New parameter**: `format` (mandatory) is now required as the third argument.
+- **Before**: `telegram.setStickerSetThumbnail(name, userId, thumbnail)`
+- **After**: `telegram.setStickerSetThumbnail(name, userId, format, thumbnail)`
+- **Reason**: Telegram Bot API now strictly distinguishes between sticker formats (`static`, `animated`, `video`) for thumbnails.
+
+#### **editMessageText** (Strict Mode)
+- **Change**: The method now uses a Discriminated Union for parameters. 
+- **Impact**: You can no longer pass both `chat_id` and `inline_message_id` simultaneously (even as `undefined`). TypeScript will now enforce either the "Chat" signature or the "Inline" signature, preventing 400 Bad Request errors at compile time.
 
 ## Introduction
 
