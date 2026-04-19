@@ -39,7 +39,7 @@ Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardene
         Performs an actual network request to Telegram via getMe to verify the token and pre-populate botInfo.
         Throws a descriptive 401 Unauthorized error if the token is revoked or invalid.
         Automatically populates bot.botInfo on success.
--   🛠 **Future:** Native SOCKS5/TOR support and Telegram Stars (new API till 7.8 support) integration & stricter types.
+-   🛠 **Future:** Telegram Stars (new API till 7.8 support) integration & stricter types.
 -   ✅ **Native SOCKS5/TOR Support:** Built-in support for SOCKS4/5 and Tor proxies using `undici` and `socks`. No more external fetch-wrappers needed.
 -   ✅ **Zero-Dependency Network Layer:** Completely dropped `node-fetch`. Now using native **Node.js 18+ Fetch API** (via `undici` dispatcher) for maximum performance.
 
