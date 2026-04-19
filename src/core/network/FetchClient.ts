@@ -18,7 +18,7 @@ export class FetchClient {
         if (!options.proxy) return
 
         const parsedProxy = new URL(options.proxy)
-        const protocol = parsedProxy.protocol.replace(':', '') as ProxyProtocol
+        const protocol = parsedProxy.protocol.replace(':', '')
 
         const proxyOptions: SocksProxy = {
             host: parsedProxy.hostname,
