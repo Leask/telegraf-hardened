@@ -15,6 +15,7 @@ import { URL } from 'url'
 const debug = require('debug')('telegraf:client')
 const { isStream } = MultipartStream
 import { Readable } from 'stream'
+import { FetchClient } from './FetchClient'
 
 const WEBHOOK_REPLY_METHOD_ALLOWLIST = new Set<keyof Telegram>([
     'answerCallbackQuery',
@@ -436,13 +437,19 @@ class ApiClient {
 
     constructor(
         readonly token: string,
-        options?: Partial<ApiClient.Options>,
+        options?: Partial<ApiClient.Options & { proxy?: string }>,
         private readonly response?: Response
     ) {
         this.options = {
             ...DEFAULT_OPTIONS,
             ...compactOptions(options),
         }
+
+        if (options?.proxy) {
+            const network = new FetchClient({ proxy: options.proxy })
+            this.options.fetch = network.fetch.bind(network)
+        }
+
         if (this.options.apiRoot.startsWith('http://')) {
             this.options.agent = undefined
         }

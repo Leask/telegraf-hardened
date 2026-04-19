@@ -46,23 +46,28 @@ Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardene
 ## ⚠️ Breaking Changes
 
 ## Class methods
+
 #### **Telegraf Constructor (Fail-Fast Validation)**
-- **Change**: Added synchronous token validation directly in the constructor.
-- **Impact**: If you pass `undefined`, an empty string, or a malformed token (missing `:`), the constructor will now **throw an Error immediately**. 
-- **Reason**: In original Telegraf, a bot could be instantiated with an invalid token and only fail much later during `launch()` or the first API call. We catch this at the earliest possible stage.
+
+-   **Change**: Added synchronous token validation directly in the constructor.
+-   **Impact**: If you pass `undefined`, an empty string, or a malformed token (missing `:`), the constructor will now **throw an Error immediately**.
+-   **Reason**: In original Telegraf, a bot could be instantiated with an invalid token and only fail much later during `launch()` or the first API call. We catch this at the earliest possible stage.
 
 ### Telegram API Methods
 
 #### **setStickerSetThumbnail**
+
 Method signature updated to align with the latest Bot API requirements.
-- **New parameter**: `format` (mandatory) is now required as the third argument.
-- **Before**: `telegram.setStickerSetThumbnail(name, userId, thumbnail)`
-- **After**: `telegram.setStickerSetThumbnail(name, userId, format, thumbnail)`
-- **Reason**: Telegram Bot API now strictly distinguishes between sticker formats (`static`, `animated`, `video`) for thumbnails.
+
+-   **New parameter**: `format` (mandatory) is now required as the third argument.
+-   **Before**: `telegram.setStickerSetThumbnail(name, userId, thumbnail)`
+-   **After**: `telegram.setStickerSetThumbnail(name, userId, format, thumbnail)`
+-   **Reason**: Telegram Bot API now strictly distinguishes between sticker formats (`static`, `animated`, `video`) for thumbnails.
 
 #### **editMessageText** (Strict Mode)
-- **Change**: The method now uses a Discriminated Union for parameters. 
-- **Impact**: You can no longer pass both `chat_id` and `inline_message_id` simultaneously (even as `undefined`). TypeScript will now enforce either the "Chat" signature or the "Inline" signature, preventing 400 Bad Request errors at compile time.
+
+-   **Change**: The method now uses a Discriminated Union for parameters.
+-   **Impact**: You can no longer pass both `chat_id` and `inline_message_id` simultaneously (even as `undefined`). TypeScript will now enforce either the "Chat" signature or the "Inline" signature, preventing 400 Bad Request errors at compile time.
 
 ## Introduction
 
@@ -91,16 +96,16 @@ Telegraf is a library that makes it simple for you to develop your own Telegram 
 const { Telegraf } = require('telegraf-hardened')
 const { message } = require('telegraf-hardened/filters')
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+const bot = new Telegraf(process.env.BOT_TOKEN)
 
-(async () => {
-await bot.validateTokenAsync();
-bot.start((ctx) => ctx.reply('Welcome'))
-bot.help((ctx) => ctx.reply('Send me a sticker'))
-bot.on(message('sticker'), (ctx) => ctx.reply('👍'))
-bot.hears('hi', (ctx) => ctx.reply('Hey there'))
-bot.launch()
-})();
+;(async () => {
+    await bot.validateTokenAsync()
+    bot.start((ctx) => ctx.reply('Welcome'))
+    bot.help((ctx) => ctx.reply('Send me a sticker'))
+    bot.on(message('sticker'), (ctx) => ctx.reply('👍'))
+    bot.hears('hi', (ctx) => ctx.reply('Hey there'))
+    bot.launch()
+})()
 
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'))
@@ -110,13 +115,12 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'))
 ```js
 const { Telegraf } = require('telegraf-hardened')
 
-const bot = new Telegraf(process.env.BOT_TOKEN)
-(async () => {
-await bot.validateTokenAsync();
-bot.command('oldschool', (ctx) => ctx.reply('Hello'))
-bot.command('hipster', Telegraf.reply('λ'))
-bot.launch()
-})();
+const bot = new Telegraf(process.env.BOT_TOKEN)(async () => {
+    await bot.validateTokenAsync()
+    bot.command('oldschool', (ctx) => ctx.reply('Hello'))
+    bot.command('hipster', Telegraf.reply('λ'))
+    bot.launch()
+})()
 
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'))
