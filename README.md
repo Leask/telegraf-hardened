@@ -39,30 +39,37 @@ Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardene
         Performs an actual network request to Telegram via getMe to verify the token and pre-populate botInfo.
         Throws a descriptive 401 Unauthorized error if the token is revoked or invalid.
         Automatically populates bot.botInfo on success.
--   🛠 **Future:** Native SOCKS5/TOR support and Telegram Stars (API 7.8) integration & stricter types.
+-   🛠 **Future:** Telegram Stars (new API till 7.8 support) integration & stricter types.
+-   ✅ **Native SOCKS5/TOR Support:** Built-in support for SOCKS4/5 and Tor proxies using `undici` and `socks`. No more external fetch-wrappers needed.
+-   ✅ **Zero-Dependency Network Layer:** Completely dropped `node-fetch`. Now using native **Node.js 18+ Fetch API** (via `undici` dispatcher) for maximum performance.
 
 **Are you a Telegraf contributor?** If your PR is ignored upstream, [resubmit it here](https://github.com/siakinnik/telegraf-hardened/issues/1)!
 
 ## ⚠️ Breaking Changes
 
 ## Class methods
+
 #### **Telegraf Constructor (Fail-Fast Validation)**
-- **Change**: Added synchronous token validation directly in the constructor.
-- **Impact**: If you pass `undefined`, an empty string, or a malformed token (missing `:`), the constructor will now **throw an Error immediately**. 
-- **Reason**: In original Telegraf, a bot could be instantiated with an invalid token and only fail much later during `launch()` or the first API call. We catch this at the earliest possible stage.
+
+-   **Change**: Added synchronous token validation directly in the constructor.
+-   **Impact**: If you pass `undefined`, an empty string, or a malformed token (missing `:`), the constructor will now **throw an Error immediately**.
+-   **Reason**: In original Telegraf, a bot could be instantiated with an invalid token and only fail much later during `launch()` or the first API call. We catch this at the earliest possible stage.
 
 ### Telegram API Methods
 
 #### **setStickerSetThumbnail**
+
 Method signature updated to align with the latest Bot API requirements.
-- **New parameter**: `format` (mandatory) is now required as the third argument.
-- **Before**: `telegram.setStickerSetThumbnail(name, userId, thumbnail)`
-- **After**: `telegram.setStickerSetThumbnail(name, userId, format, thumbnail)`
-- **Reason**: Telegram Bot API now strictly distinguishes between sticker formats (`static`, `animated`, `video`) for thumbnails.
+
+-   **New parameter**: `format` (mandatory) is now required as the third argument.
+-   **Before**: `telegram.setStickerSetThumbnail(name, userId, thumbnail)`
+-   **After**: `telegram.setStickerSetThumbnail(name, userId, format, thumbnail)`
+-   **Reason**: Telegram Bot API now strictly distinguishes between sticker formats (`static`, `animated`, `video`) for thumbnails.
 
 #### **editMessageText** (Strict Mode)
-- **Change**: The method now uses a Discriminated Union for parameters. 
-- **Impact**: You can no longer pass both `chat_id` and `inline_message_id` simultaneously (even as `undefined`). TypeScript will now enforce either the "Chat" signature or the "Inline" signature, preventing 400 Bad Request errors at compile time.
+
+-   **Change**: The method now uses a Discriminated Union for parameters.
+-   **Impact**: You can no longer pass both `chat_id` and `inline_message_id` simultaneously (even as `undefined`). TypeScript will now enforce either the "Chat" signature or the "Inline" signature, preventing 400 Bad Request errors at compile time.
 
 ## Introduction
 
@@ -71,6 +78,23 @@ Users can interact with bots by sending them command messages in private or grou
 These accounts serve as an interface for code running somewhere on your server.
 
 Telegraf is a library that makes it simple for you to develop your own Telegram bots using JavaScript or [TypeScript](https://www.typescriptlang.org/).
+
+## 🔌 Proxy Support (SOCKS/HTTP)
+
+Telegraf-hardened supports SOCKS4, SOCKS5 (including Tor), and HTTP proxies out of the box.
+
+```js
+const { Telegraf } = require('telegraf-hardened')
+
+const bot = new Telegraf(process.env.BOT_TOKEN, {
+    telegram: {
+        proxy: 'socks5://127.0.0.1:9050', // Tor default port
+    },
+})
+
+// For authenticated proxies:
+// proxy: '[http://user:pass@1.2.3.4:8080](http://user:pass@1.2.3.4:8080)'
+```
 
 ### Features
 
@@ -91,16 +115,16 @@ Telegraf is a library that makes it simple for you to develop your own Telegram 
 const { Telegraf } = require('telegraf-hardened')
 const { message } = require('telegraf-hardened/filters')
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+const bot = new Telegraf(process.env.BOT_TOKEN)
 
-(async () => {
-await bot.validateTokenAsync();
-bot.start((ctx) => ctx.reply('Welcome'))
-bot.help((ctx) => ctx.reply('Send me a sticker'))
-bot.on(message('sticker'), (ctx) => ctx.reply('👍'))
-bot.hears('hi', (ctx) => ctx.reply('Hey there'))
-bot.launch()
-})();
+;(async () => {
+    await bot.validateTokenAsync()
+    bot.start((ctx) => ctx.reply('Welcome'))
+    bot.help((ctx) => ctx.reply('Send me a sticker'))
+    bot.on(message('sticker'), (ctx) => ctx.reply('👍'))
+    bot.hears('hi', (ctx) => ctx.reply('Hey there'))
+    bot.launch()
+})()
 
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'))
@@ -110,13 +134,12 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'))
 ```js
 const { Telegraf } = require('telegraf-hardened')
 
-const bot = new Telegraf(process.env.BOT_TOKEN)
-(async () => {
-await bot.validateTokenAsync();
-bot.command('oldschool', (ctx) => ctx.reply('Hello'))
-bot.command('hipster', Telegraf.reply('λ'))
-bot.launch()
-})();
+const bot = new Telegraf(process.env.BOT_TOKEN)(async () => {
+    await bot.validateTokenAsync()
+    bot.command('oldschool', (ctx) => ctx.reply('Hello'))
+    bot.command('hipster', Telegraf.reply('λ'))
+    bot.launch()
+})()
 
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'))
