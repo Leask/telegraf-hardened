@@ -41,11 +41,15 @@ export class Polling {
             } catch (error) {
                 const err = error as Error & {
                     parameters?: { retry_after: number }
+                    code?: string | number
                 }
 
                 if (err.name === 'AbortError') return
                 if (
                     err.name === 'FetchError' ||
+                    err.message.includes('fetch failed') ||
+                    err.code === 'ECONNRESET' ||
+                    err.code === 'ETIMEDOUT' ||
                     (err instanceof TelegramError && err.code === 429) ||
                     (err instanceof TelegramError && err.code >= 500)
                 ) {
