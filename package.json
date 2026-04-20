@@ -6,10 +6,10 @@
   "author": "The Telegraf-hardened Contributors",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/siakinnik/telegraf-hardened.git"
+    "url": "git+ssh://git@github.com/telegraf-hardened/telegraf-hardened.git"
   },
   "bugs": {
-    "url": "https://github.com/siakinnik/telegraf-hardened/issues"
+    "url": "https://github.com/telegraf-hardened/telegraf-hardened/issues"
   },
   "main": "lib/index.js",
   "exports": {
