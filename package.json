@@ -1,6 +1,6 @@
 {
     "name": "telegraf-hardened",
-    "version": "4.17.0-alpha.2",
+    "version": "v5.0.0-beta.1",
     "description": "Hardened version of Telegraf with community fixes",
     "license": "MIT",
     "author": "The Telegraf-hardened Contributors",
