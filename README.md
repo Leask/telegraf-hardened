@@ -31,6 +31,12 @@ Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardene
 
 ### Key Improvements in this Fork already done:
 
+-   🛠 **Future:** Even stricter type validation & community-requested features.
+-   ✅ **Native Telegram Stars Support (API 7.8):** 
+    -   Full support for digital goods, star transactions, and paid media.
+    -   `sendPaidMedia()` — Send exclusive content for stars.
+    -   `getStarTransactions()` — Built-in business logic for tracking star revenue.
+    -   `refundStarPayment()` — Native refund support for star-based transactions.
 -   ✅ **Zero-Dependency Network Layer:** Completely dropped `node-fetch` and `abort-controller`. Now using native **Node.js 18+ Fetch API** for maximum performance and security.
 -   ✅ **Fail-Fast Security:** Integrated token validation and strict error handling to prevent state leaks.
 -   ✅ **Community PRs:** Already merged some critical fixes from the community.
@@ -39,14 +45,7 @@ Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardene
         Performs an actual network request to Telegram via getMe to verify the token and pre-populate botInfo.
         Throws a descriptive 401 Unauthorized error if the token is revoked or invalid.
         Automatically populates bot.botInfo on success.
--   ✅ **Telegram Stars (API 7.8):** Full support for digital goods, star transactions, and paid media.
--   🛠 **Future:** Even stricter type validation & community-requested features.
 -   ✅ **Native SOCKS5/TOR Support:** Built-in support for SOCKS4/5 and Tor proxies using `undici` and `socks`. No more external fetch-wrappers needed.
--   ✅ **Zero-Dependency Network Layer:** Completely dropped `node-fetch`. Now using native **Node.js 18+ Fetch API** (via `undici` dispatcher) for maximum performance.
--   ✅ **Native Telegram Stars Support:**
-    -   `sendPaidMedia()` — Send exclusive content for stars.
-    -   `getStarTransactions()` — Built-in business logic for tracking star revenue.
-    -   `refundStarPayment()` — Native refund support for star-based transactions.
 
 **Are you a Telegraf contributor?** If your PR is ignored upstream, [resubmit it here](https://github.com/siakinnik/telegraf-hardened/issues/1)!
 
