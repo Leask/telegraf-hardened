@@ -27,7 +27,7 @@ This fork exists and improves thanks to the amazing contributors:
 
 We are actively porting critical improvements that are stuck in the official Telegraf repository.
 
-Check our **[Strategic Roadmap #1](https://github.com/siakinnik/telegraf-hardened/issues/1)**
+Check our **[Strategic Roadmap #1](https://github.com/telegraf-hardened/telegraf-hardened/issues/1)**
 
 ### Key Improvements in this Fork already done:
 
