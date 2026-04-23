@@ -4,7 +4,7 @@
 <!-- <img src="docs/assets/logo.svg" alt="logo" height="90" align="center"> -->
 
 <h1 align="center">
-Telegraf-hardened - Сommunity-led fork of Telegraf.js. Focusing on stability, strict TypeScript types, and integrating critical community PRs that were abandoned by upstream.
+Telegraf-hardened - Community-led fork of Telegraf.js. Focusing on stability, strict TypeScript types, and integrating critical community PRs that were abandoned by upstream. 
 </h1>
 
 <p>Modern Telegram Bot API framework for Node.js</p>
@@ -25,9 +25,12 @@ This fork exists and improves thanks to the amazing contributors:
 
 ## 🛠 Roadmap & Community Fixes
 
-We are actively porting critical improvements that are stuck in the official Telegraf repository.
+### 🎯 Current Status: v1 Strategic Roadmap Fully Closed ✅
+Version: 🚀 **v5.0.0 Stable** | 🛡 **Hardened** 
 
-Check our **[Strategic Roadmap #1](https://github.com/telegraf-hardened/telegraf-hardened/issues/1)**
+We have successfully integrated all planned critical improvements from the community that were abandoned by the official Telegraf upstream. **Telegraf-hardened is now a feature-complete and stable alternative.**
+
+Check our **[Strategic Roadmap v1](https://github.com/telegraf-hardened/telegraf-hardened/issues/1)**
 
 ### Key Improvements in this Fork already done:
 
