@@ -32,7 +32,7 @@ Check our **[Strategic Roadmap #1](https://github.com/telegraf-hardened/telegraf
 ### Key Improvements in this Fork already done:
 
 -   🛠 **Future:** Even stricter type validation & community-requested features.
--   ✅ **Native Telegram Stars Support (API 7.8):** 
+-   ✅ **Native Telegram Stars Support (API 7.8):**
     -   Full support for digital goods, star transactions, and paid media.
     -   `sendPaidMedia()` — Send exclusive content for stars.
     -   `getStarTransactions()` — Built-in business logic for tracking star revenue.
@@ -116,7 +116,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN, {
 ## 📖 Documentation
 
 The complete documentation for `telegraf-hardened` is available at:
-👉 **[telegraf-hardened/telegraf-docs](https://github.com/telegraf-hardened/telegraf-docs)** > *Note: We are currently updating the docs to include all the new Hardened features like Native Fetch and Telegram Stars.*
+👉 **[telegraf-hardened/telegraf-docs](https://github.com/telegraf-hardened/telegraf-docs)** > _Note: We are currently updating the docs to include all the new Hardened features like Native Fetch and Telegram Stars._
 
 ### Example
 

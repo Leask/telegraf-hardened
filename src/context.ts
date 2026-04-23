@@ -1578,24 +1578,32 @@ type Getter<U extends Deunionize<tg.Update>, P extends string> = PropOr<
 >
 
 interface Msg {
-    isAccessible(): this is MaybeMessage<tg.Message>
+    isAccessible(
+        this: tg.MaybeInaccessibleMessage
+    ): this is MaybeMessage<tg.Message>
     has<Ks extends UnionKeys<tg.Message>[]>(
         ...keys: Ks
     ): this is MaybeMessage<Keyed<tg.Message, Ks[number]>>
 }
 
-const Msg: Msg = {
-    isAccessible() {
+class MsgPrototype implements Msg {
+    isAccessible(
+        this: tg.MaybeInaccessibleMessage
+    ): this is MaybeMessage<tg.Message> {
         return 'date' in this && this.date !== 0
-    },
-    has(...keys) {
+    }
+
+    has<Ks extends UnionKeys<tg.Message>[]>(
+        this: tg.Message,
+        ...keys: Ks
+    ): this is MaybeMessage<Keyed<tg.Message, Ks[number]>> {
         return keys.some(
-            (key) =>
-                // @ts-expect-error TS doesn't understand key
-                this[key] != undefined
+            (key) => (this as Record<string, any>)[key] != undefined
         )
-    },
+    }
 }
+
+const Msg: Msg = new MsgPrototype()
 
 export type MaybeMessage<
     M extends tg.MaybeInaccessibleMessage = tg.MaybeInaccessibleMessage,
