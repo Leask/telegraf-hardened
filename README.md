@@ -116,7 +116,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN, {
 ## 📖 Documentation
 
 The complete documentation for `telegraf-hardened` is available at:
-👉 **[telegraf-docs.telegraf-hardened.org](https://github.com/telegraf-hardened/telegraf-docs)** > *Note: We are currently updating the docs to include all the new Hardened features like Native Fetch and Telegram Stars.*
+👉 **[telegraf-hardened/telegraf-docs](https://github.com/telegraf-hardened/telegraf-docs)** > *Note: We are currently updating the docs to include all the new Hardened features like Native Fetch and Telegram Stars.*
 
 ### Example
 
