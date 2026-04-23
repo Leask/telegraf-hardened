@@ -47,7 +47,7 @@ Check our **[Strategic Roadmap #1](https://github.com/telegraf-hardened/telegraf
         Automatically populates bot.botInfo on success.
 -   ✅ **Native SOCKS5/TOR Support:** Built-in support for SOCKS4/5 and Tor proxies using `undici` and `socks`. No more external fetch-wrappers needed.
 
-**Are you a Telegraf contributor?** If your PR is ignored upstream, [resubmit it here](https://github.com/siakinnik/telegraf-hardened/issues/1)!
+**Are you a Telegraf contributor?** If your PR is ignored upstream, [resubmit it here](https://github.com/telegraf-hardened/telegraf-hardened/issues/1)!
 
 ## ⚠️ Breaking Changes
 
