@@ -30,7 +30,7 @@ interface InputFileLike {
     filename?: string
 }
 
-interface NetworkOptions {
+export interface NetworkOptions {
     proxy: string
     FetchClient: new (config: { proxy: string }) => { fetch: Function }
 }

@@ -17,6 +17,7 @@ import { TlsOptions } from 'tls'
 import { URL } from 'url'
 import safeCompare = require('safe-compare')
 import { validateToken } from './core/helpers/validate-token'
+import { NetworkOptions } from './core/network/client'
 const debug = d('telegraf:main')
 
 const DEFAULT_OPTIONS: Telegraf.Options<Context> = {
@@ -37,7 +38,7 @@ export namespace Telegraf {
             ...args: ConstructorParameters<typeof Context>
         ) => TContext
         handlerTimeout: number
-        telegram?: Partial<ApiClient.Options & { proxy?: string }>
+        telegram?: Partial<ApiClient.Options & { proxy?: NetworkOptions }>
     }
 
     export interface LaunchOptions {
