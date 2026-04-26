@@ -15,7 +15,6 @@ import { URL } from 'url'
 const debug = require('debug')('telegraf:client')
 const { isStream } = MultipartStream
 import { Readable } from 'stream'
-import { FetchClient } from '@telegraf-hardened/fetch'
 
 const WEBHOOK_REPLY_METHOD_ALLOWLIST = new Set<keyof Telegram>([
     'answerCallbackQuery',
@@ -29,6 +28,11 @@ interface InputFileLike {
     source?: unknown
     url?: unknown
     filename?: string
+}
+
+interface NetworkOptions {
+    proxy: string;
+    FetchClient: new (config: { proxy: string }) => { fetch: Function };
 }
 
 const isInputFileLike = (value: unknown): value is InputFileLike => {
@@ -414,7 +418,7 @@ async function answerToWebhook(
     await new Promise((resolve) => {
         response.on('finish', resolve)
         if (body && typeof body === 'object' && 'pipe' in body) {
-            ;(body as import('stream').Readable).pipe(response)
+            ; (body as import('stream').Readable).pipe(response)
         } else {
             response.end(body)
             resolve(true)
@@ -439,7 +443,7 @@ class ApiClient {
 
     constructor(
         readonly token: string,
-        options?: Partial<ApiClient.Options & { proxy?: string }>,
+        options?: Partial<ApiClient.Options & { proxy?: NetworkOptions }>,
         private readonly response?: Response
     ) {
         this.options = {
@@ -448,8 +452,15 @@ class ApiClient {
         }
 
         if (options?.proxy) {
-            const network = new FetchClient({ proxy: options.proxy })
-            this.options.fetch = network.fetch.bind(network)
+            const { proxy, FetchClient } = options.proxy;
+
+            if (typeof proxy === 'string' && typeof FetchClient === 'function') {
+                const clientInstance = new FetchClient({ proxy });
+
+                this.options.fetch = clientInstance.fetch.bind(clientInstance);
+            } else {
+                throw new Error("Invalid network options: 'proxy' must be a string and 'FetchClient' must be a class.");
+            }
         }
 
         if (this.options.apiRoot.startsWith('http://')) {
@@ -508,14 +519,13 @@ class ApiClient {
 
         const config: FetchInitModel = includesMedia(payload)
             ? await buildFormDataConfig(
-                  { method, ...payload },
-                  options.attachmentAgent,
-                  options.fetch
-              )
+                { method, ...payload },
+                options.attachmentAgent,
+                options.fetch
+            )
             : await buildJSONConfig(payload)
         const apiUrl = new URL(
-            `./${options.apiMode}${token}${
-                options.testEnv ? '/test' : ''
+            `./${options.apiMode}${token}${options.testEnv ? '/test' : ''
             }/${method}`,
             options.apiRoot
         )
