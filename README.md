@@ -22,6 +22,7 @@ This fork exists and improves thanks to the amazing contributors:
 
 -   **[@BataevDaniil](https://github.com/BataevDaniil)** — Architect of the `custom-fetch` feature.
 -   **[@clansty](https://github.com/clansty)** — Critical JSON serialization and thumbnail fixes.
+-   **[@coolcat-lox](https://github.com/coolcat-lox)** - For proactive porting of community improvements.
 
 ## 🛠 Roadmap & Community Fixes
 
