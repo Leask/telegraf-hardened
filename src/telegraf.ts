@@ -218,9 +218,14 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
             this.botInfo = me
             debug(`Token is valid. Bot: @${me.username}`)
             return
-        } catch (err: any) {
-            if (err.response?.error_code === 401) {
-                throw new Error('Telegraf: 401 Unauthorized (Invalid Token)')
+        } catch (err: unknown) {
+            if (err && typeof err === 'object' && 'response' in err) {
+                const error = err as { response?: { error_code?: number } }
+                if (error.response?.error_code === 401) {
+                    throw new Error(
+                        'Telegraf: 401 Unauthorized (Invalid Token)'
+                    )
+                }
             }
             throw err
         }
