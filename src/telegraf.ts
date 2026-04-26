@@ -17,6 +17,7 @@ import { TlsOptions } from 'tls'
 import { URL } from 'url'
 import safeCompare = require('safe-compare')
 import { validateToken } from './core/helpers/validate-token'
+import { NetworkOptions } from './core/network/client'
 const debug = d('telegraf:main')
 
 const DEFAULT_OPTIONS: Telegraf.Options<Context> = {
@@ -37,7 +38,7 @@ export namespace Telegraf {
             ...args: ConstructorParameters<typeof Context>
         ) => TContext
         handlerTimeout: number
-        telegram?: Partial<ApiClient.Options & { proxy?: string }>
+        telegram?: Partial<ApiClient.Options & { proxy?: NetworkOptions }>
     }
 
     export interface LaunchOptions {
@@ -217,9 +218,14 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
             this.botInfo = me
             debug(`Token is valid. Bot: @${me.username}`)
             return
-        } catch (err: any) {
-            if (err.response?.error_code === 401) {
-                throw new Error('Telegraf: 401 Unauthorized (Invalid Token)')
+        } catch (err: unknown) {
+            if (err && typeof err === 'object' && 'response' in err) {
+                const error = err as { response?: { error_code?: number } }
+                if (error.response?.error_code === 401) {
+                    throw new Error(
+                        'Telegraf: 401 Unauthorized (Invalid Token)'
+                    )
+                }
             }
             throw err
         }

@@ -100,10 +100,14 @@ Telegraf-hardened supports SOCKS4, SOCKS5 (including Tor), and HTTP proxies out 
 
 ```js
 const { Telegraf } = require('telegraf-hardened')
+const { FetchClient } = require('@telegraf-hardened/fetch') // Install this separately
 
 const bot = new Telegraf(process.env.BOT_TOKEN, {
     telegram: {
-        proxy: 'socks5://127.0.0.1:9050', // Tor default port
+        proxy: {
+            proxy: 'socks5://127.0.0.1:9050',
+            FetchClient: FetchClient, // Injecting the client class
+        },
     },
 })
 

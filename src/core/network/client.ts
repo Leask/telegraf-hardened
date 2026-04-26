@@ -15,7 +15,6 @@ import { URL } from 'url'
 const debug = require('debug')('telegraf:client')
 const { isStream } = MultipartStream
 import { Readable } from 'stream'
-import { FetchClient } from '@telegraf-hardened/fetch'
 
 const WEBHOOK_REPLY_METHOD_ALLOWLIST = new Set<keyof Telegram>([
     'answerCallbackQuery',
@@ -29,6 +28,16 @@ interface InputFileLike {
     source?: unknown
     url?: unknown
     filename?: string
+}
+
+export interface NetworkOptions {
+    proxy: string
+    FetchClient: new (config: { proxy: string }) => {
+        fetch: (
+            input: globalThis.RequestInfo | URL,
+            init?: globalThis.RequestInit
+        ) => Promise<globalThis.Response>
+    }
 }
 
 const isInputFileLike = (value: unknown): value is InputFileLike => {
@@ -439,7 +448,7 @@ class ApiClient {
 
     constructor(
         readonly token: string,
-        options?: Partial<ApiClient.Options & { proxy?: string }>,
+        options?: Partial<ApiClient.Options & { proxy?: NetworkOptions }>,
         private readonly response?: Response
     ) {
         this.options = {
@@ -448,8 +457,20 @@ class ApiClient {
         }
 
         if (options?.proxy) {
-            const network = new FetchClient({ proxy: options.proxy })
-            this.options.fetch = network.fetch.bind(network)
+            const { proxy, FetchClient } = options.proxy
+
+            if (
+                typeof proxy === 'string' &&
+                typeof FetchClient === 'function'
+            ) {
+                const clientInstance = new FetchClient({ proxy })
+
+                this.options.fetch = clientInstance.fetch.bind(clientInstance)
+            } else {
+                throw new Error(
+                    "Invalid network options: 'proxy' must be a string and 'FetchClient' must be a class."
+                )
+            }
         }
 
         if (this.options.apiRoot.startsWith('http://')) {
