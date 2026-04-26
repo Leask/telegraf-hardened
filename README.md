@@ -105,9 +105,9 @@ const { FetchClient } = require('@telegraf-hardened/fetch') // Install this sepa
 const bot = new Telegraf(process.env.BOT_TOKEN, {
     telegram: {
         proxy: {
-        proxy: 'socks5://127.0.0.1:9050', 
-        FetchClient: FetchClient         // Injecting the client class
-        }
+            proxy: 'socks5://127.0.0.1:9050',
+            FetchClient: FetchClient, // Injecting the client class
+        },
     },
 })
 

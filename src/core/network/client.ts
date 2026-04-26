@@ -31,8 +31,8 @@ interface InputFileLike {
 }
 
 interface NetworkOptions {
-    proxy: string;
-    FetchClient: new (config: { proxy: string }) => { fetch: Function };
+    proxy: string
+    FetchClient: new (config: { proxy: string }) => { fetch: Function }
 }
 
 const isInputFileLike = (value: unknown): value is InputFileLike => {
@@ -418,7 +418,7 @@ async function answerToWebhook(
     await new Promise((resolve) => {
         response.on('finish', resolve)
         if (body && typeof body === 'object' && 'pipe' in body) {
-            ; (body as import('stream').Readable).pipe(response)
+            ;(body as import('stream').Readable).pipe(response)
         } else {
             response.end(body)
             resolve(true)
@@ -452,14 +452,19 @@ class ApiClient {
         }
 
         if (options?.proxy) {
-            const { proxy, FetchClient } = options.proxy;
+            const { proxy, FetchClient } = options.proxy
 
-            if (typeof proxy === 'string' && typeof FetchClient === 'function') {
-                const clientInstance = new FetchClient({ proxy });
+            if (
+                typeof proxy === 'string' &&
+                typeof FetchClient === 'function'
+            ) {
+                const clientInstance = new FetchClient({ proxy })
 
-                this.options.fetch = clientInstance.fetch.bind(clientInstance);
+                this.options.fetch = clientInstance.fetch.bind(clientInstance)
             } else {
-                throw new Error("Invalid network options: 'proxy' must be a string and 'FetchClient' must be a class.");
+                throw new Error(
+                    "Invalid network options: 'proxy' must be a string and 'FetchClient' must be a class."
+                )
             }
         }
 
@@ -519,13 +524,14 @@ class ApiClient {
 
         const config: FetchInitModel = includesMedia(payload)
             ? await buildFormDataConfig(
-                { method, ...payload },
-                options.attachmentAgent,
-                options.fetch
-            )
+                  { method, ...payload },
+                  options.attachmentAgent,
+                  options.fetch
+              )
             : await buildJSONConfig(payload)
         const apiUrl = new URL(
-            `./${options.apiMode}${token}${options.testEnv ? '/test' : ''
+            `./${options.apiMode}${token}${
+                options.testEnv ? '/test' : ''
             }/${method}`,
             options.apiRoot
         )
