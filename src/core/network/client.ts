@@ -32,7 +32,12 @@ interface InputFileLike {
 
 export interface NetworkOptions {
     proxy: string
-    FetchClient: new (config: { proxy: string }) => { fetch: Function }
+    FetchClient: new (config: { proxy: string }) => {
+        fetch: (
+            input: globalThis.RequestInfo | URL,
+            init?: globalThis.RequestInit
+        ) => Promise<globalThis.Response>
+    }
 }
 
 const isInputFileLike = (value: unknown): value is InputFileLike => {
