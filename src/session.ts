@@ -49,15 +49,15 @@ export function session<
     S extends NonNullable<C[P]>,
     C extends Context & { [key in P]?: C[P] },
     P extends (ExclusiveKeys<C, Context> & string) | 'session' = 'session',
-    // ^ Only allow prop names that aren't keys in base Context.
-    // At type level, this is cosmetic. To not get cluttered with all Context keys.
+// ^ Only allow prop names that aren't keys in base Context.
+// At type level, this is cosmetic. To not get cluttered with all Context keys.
 >(options?: SessionOptions<S, C, P>): MiddlewareFn<C> {
     const prop = options?.property ?? ('session' as P)
     const getSessionKey = options?.getSessionKey ?? defaultGetSessionKey
     const store = options?.store ?? new MemorySessionStore()
     // caches value from store in-memory while simultaneous updates share it
     // when counter reaches 0, the cached ref will be freed from memory
-    const cache = new Map<string, { ref?: S; counter: number }>()
+    const cache = new Map<string, { ref: S | object; counter: number }>()
     // temporarily stores concurrent requests
     const concurrents = new Map<string, MaybePromise<S | undefined>>()
 
@@ -115,7 +115,7 @@ export function session<
             } else {
                 // we're the first, so we must cache the reference
                 cached = {
-                    ref: upstream ?? options?.defaultSession?.(ctx),
+                    ref: upstream ?? options?.defaultSession?.(ctx) ?? {},
                     counter: 1,
                 }
                 cache.set(key, cached)
@@ -132,6 +132,9 @@ export function session<
             get() {
                 releaseChecks()
                 touched = true
+                if (!c.ref) {
+                    c.ref = {}
+                }
                 return c.ref
             },
             set(value: S) {
@@ -153,14 +156,19 @@ export function session<
             debug(`(${updId}) middlewares completed, checking session`)
 
             // only update store if ctx.session was touched
-            if (touched)
-                if (c.ref == null) {
+            if (touched) {
+                const sessionData = c.ref
+                if (sessionData == null) {
                     debug(`(${updId}) ctx.${prop} missing, removing from store`)
                     await store.delete(key)
                 } else {
                     debug(`(${updId}) ctx.${prop} found, updating store`)
-                    await store.set(key, c.ref)
+
+                    if (isS(sessionData)) {
+                        await store.set(key, sessionData)
+                    }
                 }
+            }
         }
     }
 }
@@ -171,12 +179,15 @@ function defaultGetSessionKey(ctx: Context): string | undefined {
     if (fromId == null || chatId == null) return undefined
     return `${fromId}:${chatId}`
 }
+function isS<T>(obj: T | object): obj is T {
+    return typeof obj === 'object' && obj !== null;
+}
 
 /** @deprecated Use `Map` */
 export class MemorySessionStore<T> implements SyncSessionStore<T> {
     private readonly store = new Map<string, { session: T; expires: number }>()
 
-    constructor(private readonly ttl = Infinity) {}
+    constructor(private readonly ttl = Infinity) { }
 
     get(name: string): T | undefined {
         const entry = this.store.get(name)
