@@ -49,8 +49,8 @@ export function session<
     S extends NonNullable<C[P]>,
     C extends Context & { [key in P]?: C[P] },
     P extends (ExclusiveKeys<C, Context> & string) | 'session' = 'session',
-// ^ Only allow prop names that aren't keys in base Context.
-// At type level, this is cosmetic. To not get cluttered with all Context keys.
+    // ^ Only allow prop names that aren't keys in base Context.
+    // At type level, this is cosmetic. To not get cluttered with all Context keys.
 >(options?: SessionOptions<S, C, P>): MiddlewareFn<C> {
     const prop = options?.property ?? ('session' as P)
     const getSessionKey = options?.getSessionKey ?? defaultGetSessionKey
@@ -180,14 +180,14 @@ function defaultGetSessionKey(ctx: Context): string | undefined {
     return `${fromId}:${chatId}`
 }
 function isS<T>(obj: T | object): obj is T {
-    return typeof obj === 'object' && obj !== null;
+    return typeof obj === 'object' && obj !== null
 }
 
 /** @deprecated Use `Map` */
 export class MemorySessionStore<T> implements SyncSessionStore<T> {
     private readonly store = new Map<string, { session: T; expires: number }>()
 
-    constructor(private readonly ttl = Infinity) { }
+    constructor(private readonly ttl = Infinity) {}
 
     get(name: string): T | undefined {
         const entry = this.store.get(name)
