@@ -28,14 +28,14 @@ This fork exists and improves thanks to the amazing contributors:
 
 ### 🎯 Current Status: v1 Strategic Roadmap Fully Closed ✅
 
-Version: 🚀 **v5.0.0 Stable** | 🛡 **Hardened**
+Version: 🚀 **v5.0.0 Stable** | 🛡 **Hardened** | API Full 7.8, partly 8.0
 Closed Roadmaps:
 
 -   **[Strategic Roadmap v1](https://github.com/telegraf-hardened/telegraf-hardened/issues/1)**
+-   **[Roadmap v2](https://github.com/telegraf-hardened/telegraf-hardened/issues/15)**
+    We have successfully integrated all planned critical improvements from the community that were abandoned by the official Telegraf upstream. **Telegraf-hardened is now a feature-complete and stable alternative.**
 
-We have successfully integrated all planned critical improvements from the community that were abandoned by the official Telegraf upstream. **Telegraf-hardened is now a feature-complete and stable alternative.**
-
-Check our current active Roadmap **[Roadmap v2](https://github.com/telegraf-hardened/telegraf-hardened/issues/15)**
+<!-- Check our current active Roadmap **[Roadmap v2](https://github.com/telegraf-hardened/telegraf-hardened/issues/15)** -->
 
 ### Key Improvements in this Fork already done:
 
@@ -45,6 +45,7 @@ Check our current active Roadmap **[Roadmap v2](https://github.com/telegraf-hard
     -   Prevents bot crash-loops during Docker/PM2 restarts when the previous connection is still active.
     -   Opt-in via `bot.launch({ polling: { retryOnConflict: true } })`.
 -   ✅ **Native Telegram Stars Support (API 7.8):**
+    -   `getUserGifts()` — Fetch the list of gifts received by a user.
     -   Full support for digital goods, star transactions, and paid media.
     -   `sendPaidMedia()` — Send exclusive content for stars.
     -   `getStarTransactions()` — Built-in business logic for tracking star revenue.
@@ -157,6 +158,12 @@ const bot = new Telegraf(process.env.BOT_TOKEN)
             },
         ])
     })
+    bot.command('my_gifts', async (ctx) => {
+        const { total_count, gifts } = await ctx.telegram.getUserGifts(
+            ctx.from.id
+        )
+        return ctx.reply(`You have ${total_count} gifts!`)
+    п   })
     bot.launch()
 })()
 
