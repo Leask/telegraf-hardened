@@ -28,7 +28,7 @@ This fork exists and improves thanks to the amazing contributors:
 
 ### 🎯 Current Status: v1 Strategic Roadmap Fully Closed ✅
 
-Version: 🚀 **v5.0.0 Stable** | 🛡 **Hardened** | API Full 7.8, partly 8.0
+Version: 🚀 **v5.1.0 Stable** | 🛡 **Hardened** | API Full 7.8, partly 8.0
 Closed Roadmaps:
 
 -   **[Strategic Roadmap v1](https://github.com/telegraf-hardened/telegraf-hardened/issues/1)**
