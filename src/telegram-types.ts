@@ -49,6 +49,7 @@ export type ExtraAnswerInlineQuery = MakeExtra<
     'answerInlineQuery',
     'inline_query_id' | 'results'
 >
+export type ExtraGetUserGifts = MakeExtra<'getUserGifts', 'user_id'>
 export type ExtraSetChatPermissions = MakeExtra<
     'setChatPermissions',
     'permissions'
