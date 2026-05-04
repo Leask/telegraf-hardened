@@ -1705,6 +1705,19 @@ export class Telegram extends ApiClient {
         })
     }
     /**
+     * Returns the list of gifts received by a user.
+     * @param userId Unique identifier of the target user
+     * @param extra Additional parameters (offset, limit)
+     */
+
+    getUserGifts(userId: number, extra?: tt.ExtraGetUserGifts) {
+        return this.callApi('getUserGifts', {
+            user_id: userId,
+            ...extra,
+        })
+    }
+
+    /**
      * Log out from the cloud Bot API server before launching the bot locally.
      */
     logOut() {
