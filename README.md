@@ -19,23 +19,25 @@ Telegraf-hardened - Community-led fork of Telegraf.js. Focusing on stability, st
 ## ❤️ Special Thanks
 
 This fork exists and improves thanks to the amazing contributors:
-
--   **[@BataevDaniil](https://github.com/BataevDaniil)** — Architect of the `custom-fetch` feature.
--   **[@clansty](https://github.com/clansty)** — Critical JSON serialization and thumbnail fixes.
+-   **[@Leask](https://github.com/Leask)** - Full Bot API 9.6 sync, modernization of the entire network stack, and bulletproof API-sync testing.
+-   **[@BataevDaniil](https://github.com/BataevDaniil)** - Architect of the `custom-fetch` feature.
+-   **[@clansty](https://github.com/clansty)** - Critical JSON serialization and thumbnail fixes.
 -   **[@coolcat-lox](https://github.com/coolcat-lox)** - For proactive porting of community improvements.
 
 ## 🛠 Roadmap & Community Fixes
 
-### 🎯 Current Status: v2 Strategic Roadmap Fully Closed ✅
+### 🎯 Current Status: v3 Strategic Roadmap Fully Closed ✅
 
-Version: 🚀 **v5.1.0 Stable** | 🛡 **Hardened** | API Full 9.6
+Version: 🚀 **v6.0.0 Stable** | 🛡 **Hardened** | API Full 9.6
 Closed Roadmaps:
 
 -   **[Strategic Roadmap v1](https://github.com/telegraf-hardened/telegraf-hardened/issues/1)**
 -   **[Roadmap v2](https://github.com/telegraf-hardened/telegraf-hardened/issues/15)**
-    We have successfully integrated all planned critical improvements from the community that were abandoned by the official Telegraf upstream. **Telegraf-hardened is now a feature-complete and stable alternative.**
+-   **[Roadmap v3](https://github.com/telegraf-hardened/telegraf-hardened/issues/20)**
 
-Check our current active Roadmap **[Roadmap v3](https://github.com/telegraf-hardened/telegraf-hardened/issues/20)**
+We have successfully integrated all planned critical improvements from the community that were abandoned by the official Telegraf upstream. **Telegraf-hardened is now a feature-complete and stable alternative.**
+
+<!-- Check our current active Roadmap **[Roadmap v3](https://github.com/telegraf-hardened/telegraf-hardened/issues/20)** -->
 
 ### Key Improvements in this Fork already done:
 
