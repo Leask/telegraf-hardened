@@ -1381,8 +1381,8 @@ export class Telegram extends ApiClient {
     setStickerSetThumbnail(
         name: string,
         userId: number,
-        format: tg.Opts<'setStickerSetThumbnail'>['format'],
-        thumbnail?: tg.Opts<'setStickerSetThumbnail'>['thumbnail']
+        thumbnail: tg.Opts<'setStickerSetThumbnail'>['thumbnail'] | undefined,
+        format: tg.Opts<'setStickerSetThumbnail'>['format']
     ) {
         return this.callApi('setStickerSetThumbnail', {
             name,

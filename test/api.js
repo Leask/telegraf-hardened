@@ -159,6 +159,29 @@ test('Telegram answerCallbackQuery passes raw Bot API options', (t) => {
     )
 })
 
+test('Telegram setStickerSetThumbnail follows Bot API order', (t) => {
+    const telegram = new Telegram('token')
+    telegram.callApi = (method, payload) => {
+        t.is(method, 'setStickerSetThumbnail')
+        t.deepEqual(payload, {
+            name: 'stickers',
+            user_id: 42,
+            thumbnail: 'attach://thumbnail',
+            format: 'static',
+        })
+        return true
+    }
+
+    t.true(
+        telegram.setStickerSetThumbnail(
+            'stickers',
+            42,
+            'attach://thumbnail',
+            'static'
+        )
+    )
+})
+
 test('Context exposes business update helpers', async (t) => {
     let businessConnectionId
     const calls = []
