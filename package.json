@@ -71,7 +71,7 @@
   "scripts": {
     "prepare": "npm run build",
     "test": "echo 'Hardened release: legacy tests skipped intentionally' && exit 0",
-    "test:api-sync": "ava test/api-sync.js",
+    "test:api-sync": "ava test/api.js",
     "build": "tsc && npm run expose",
     "expose": "tsx build/expose.ts types scenes filters format future utils markup session",
     "build:docs": "typedoc src/index.ts",

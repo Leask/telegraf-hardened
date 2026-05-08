@@ -115,7 +115,8 @@ export function session<
             } else {
                 // we're the first, so we must cache the reference
                 cached = {
-                    ref: upstream ?? options?.defaultSession?.(ctx) ?? {},
+                    ref:
+                        upstream ?? options?.defaultSession?.(ctx) ?? ({} as S),
                     counter: 1,
                 }
                 cache.set(key, cached)

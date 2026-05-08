@@ -41,9 +41,9 @@ export class ReactionList {
                         r.custom_emoji_id === reaction
                 )
             else
-                return reactions.some(
-                    (r: Deunionize<tg.ReactionType>) => r.emoji === reaction
-                )
+                return reactions.some((r: Deunionize<tg.ReactionType>) => {
+                    return r.type === 'emoji' && r.emoji === reaction
+                })
 
         return reactions.some((r: Deunionize<tg.ReactionType>) => {
             if (r.type === 'custom_emoji')
