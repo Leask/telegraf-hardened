@@ -26,7 +26,7 @@ This fork exists and improves thanks to the amazing contributors:
 
 ## 🛠 Roadmap & Community Fixes
 
-### 🎯 Current Status: v1 Strategic Roadmap Fully Closed ✅
+### 🎯 Current Status: v2 Strategic Roadmap Fully Closed ✅
 
 Version: 🚀 **v5.1.0 Stable** | 🛡 **Hardened** | API Full 7.8, partly 8.0
 Closed Roadmaps:
@@ -35,7 +35,7 @@ Closed Roadmaps:
 -   **[Roadmap v2](https://github.com/telegraf-hardened/telegraf-hardened/issues/15)**
     We have successfully integrated all planned critical improvements from the community that were abandoned by the official Telegraf upstream. **Telegraf-hardened is now a feature-complete and stable alternative.**
 
-<!-- Check our current active Roadmap **[Roadmap v2](https://github.com/telegraf-hardened/telegraf-hardened/issues/15)** -->
+Check our current active Roadmap **[Roadmap v3](https://github.com/telegraf-hardened/telegraf-hardened/issues/20)**
 
 ### Key Improvements in this Fork already done:
 
@@ -60,7 +60,7 @@ Closed Roadmaps:
         Automatically populates bot.botInfo on success.
 -   ✅ **Native SOCKS5/TOR Support:** Built-in support for SOCKS4/5 and Tor proxies using `undici` and `socks`. No more external fetch-wrappers needed.
 
-**Are you a Telegraf contributor?** If your PR is ignored upstream, [resubmit it here](https://github.com/telegraf-hardened/telegraf-hardened/issues/1)!
+**Are you a Telegraf contributor?** If your PR is ignored upstream, [resubmit it here](https://github.com/telegraf-hardened/telegraf-hardened/issues/3)!
 
 ## ⚠️ Breaking Changes
 
