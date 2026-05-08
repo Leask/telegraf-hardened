@@ -475,6 +475,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendMessage')
         return this.telegram.sendMessage(this.chat.id, text, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -690,6 +691,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendPhoto')
         return this.telegram.sendPhoto(this.chat.id, photo, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -708,6 +710,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendMediaGroup')
         return this.telegram.sendMediaGroup(this.chat.id, media, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -726,6 +729,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendAudio')
         return this.telegram.sendAudio(this.chat.id, audio, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -744,6 +748,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendDice')
         return this.telegram.sendDice(this.chat.id, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -762,6 +767,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendDocument')
         return this.telegram.sendDocument(this.chat.id, document, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -780,6 +786,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendSticker')
         return this.telegram.sendSticker(this.chat.id, sticker, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -798,6 +805,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendVideo')
         return this.telegram.sendVideo(this.chat.id, video, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -816,6 +824,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendAnimation')
         return this.telegram.sendAnimation(this.chat.id, animation, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -837,6 +846,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendVideoNote')
         return this.telegram.sendVideoNote(this.chat.id, videoNote, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -873,6 +883,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendGame')
         return this.telegram.sendGame(this.chat.id, game, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -891,6 +902,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendVoice')
         return this.telegram.sendVoice(this.chat.id, voice, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -909,6 +921,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendPoll')
         return this.telegram.sendPoll(this.chat.id, poll, options, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -927,6 +940,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendQuiz')
         return this.telegram.sendQuiz(this.chat.id, quiz, options, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -956,6 +970,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendChatAction')
         return this.telegram.sendChatAction(this.chat.id, action, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -1051,6 +1066,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendLocation')
         return this.telegram.sendLocation(this.chat.id, latitude, longitude, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }
@@ -1079,7 +1095,11 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
             longitude,
             title,
             address,
-            { message_thread_id: getThreadId(this), ...extra }
+            {
+                message_thread_id: getThreadId(this),
+                business_connection_id: getBizConnIdFromAnySource(this),
+                ...extra,
+            }
         )
     }
 
@@ -1101,6 +1121,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(this.chat, 'sendContact')
         return this.telegram.sendContact(this.chat.id, phoneNumber, firstName, {
             message_thread_id: getThreadId(this),
+            business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
         })
     }

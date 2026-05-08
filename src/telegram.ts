@@ -820,12 +820,8 @@ export class Telegram extends ApiClient {
         })
     }
 
-    answerCallbackQuery(
-        callbackQueryId: string,
-        text?: string,
-        extra?: tt.ExtraAnswerCbQuery
-    ) {
-        return this.answerCbQuery(callbackQueryId, text, extra)
+    answerCallbackQuery(args: tg.Opts<'answerCallbackQuery'>) {
+        return this.callApi('answerCallbackQuery', args)
     }
 
     answerGameQuery(callbackQueryId: string, url: string) {

@@ -140,12 +140,40 @@ test('Telegram wrappers call through to matching Bot API methods', (t) => {
     t.deepEqual(missing, [])
 })
 
+test('Telegram answerCallbackQuery passes raw Bot API options', (t) => {
+    const telegram = new Telegram('token')
+    telegram.callApi = (method, payload) => {
+        t.is(method, 'answerCallbackQuery')
+        t.deepEqual(payload, {
+            callback_query_id: 'callback-query-id',
+            text: 'ok',
+        })
+        return true
+    }
+
+    t.true(
+        telegram.answerCallbackQuery({
+            callback_query_id: 'callback-query-id',
+            text: 'ok',
+        })
+    )
+})
+
 test('Context exposes business update helpers', async (t) => {
     let businessConnectionId
+    const calls = []
     const telegram = {
         getBusinessConnection(id) {
             businessConnectionId = id
             return { id }
+        },
+        sendMessage(...args) {
+            calls.push(['sendMessage', args])
+            return true
+        },
+        sendPhoto(...args) {
+            calls.push(['sendPhoto', args])
+            return true
         },
     }
     const ctx = new Context(
@@ -167,6 +195,34 @@ test('Context exposes business update helpers', async (t) => {
     t.is(ctx.msg.text, 'hello')
     t.deepEqual(await ctx.getBusinessConnection(), { id: 'biz-1' })
     t.is(businessConnectionId, 'biz-1')
+
+    await ctx.reply('business reply')
+    await ctx.sendPhoto('photo-id')
+
+    t.deepEqual(calls, [
+        [
+            'sendMessage',
+            [
+                42,
+                'business reply',
+                {
+                    business_connection_id: 'biz-1',
+                    message_thread_id: undefined,
+                },
+            ],
+        ],
+        [
+            'sendPhoto',
+            [
+                42,
+                'photo-id',
+                {
+                    business_connection_id: 'biz-1',
+                    message_thread_id: undefined,
+                },
+            ],
+        ],
+    ])
 })
 
 test('Bot API 9.4-9.6 changelog fields are typed', (t) => {
