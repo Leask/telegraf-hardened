@@ -82,7 +82,13 @@ const genericAsyncMiddleware = async (ctx, next) => {
 
 /** @returns {any} */
 function createBot() {
-    const bot = new Telegraf('')
+    const bot = new Telegraf('123:abc', {
+        telegram: {
+            fetch: async () => {
+                throw new Error('Network disabled in tests')
+            },
+        },
+    })
     bot.botInfo = {
         id: 42,
         is_bot: true,

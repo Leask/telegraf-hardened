@@ -1710,27 +1710,15 @@ export class Telegram extends ApiClient {
      * Refunds a successful payment in Telegram Stars.
      * @returns true on success
      */
-    refundStarPayment(userId: number, telegramPaymentChargeId: number) {
+    refundStarPayment(userId: number, telegramPaymentChargeId: string) {
         return this.callApi('refundStarPayment', {
             user_id: userId,
-            telegram_payment_charge_id: telegramPaymentChargeId.toString(),
-        })
-    }
-    /**
-     * Returns the list of gifts received by a user.
-     * @param userId Unique identifier of the target user
-     * @param extra Additional parameters (offset, limit)
-     */
-
-    getUserGifts(userId: number, extra?: tt.ExtraGetUserGifts) {
-        return this.callApi('getUserGifts', {
-            user_id: userId,
-            ...extra,
+            telegram_payment_charge_id: telegramPaymentChargeId,
         })
     }
 
-    getBusinessConnection(args: tg.Opts<'getBusinessConnection'>) {
-        return this.callApi('getBusinessConnection', args)
+    getBusinessConnection(business_connection_id: string) {
+        return this.callApi('getBusinessConnection', { business_connection_id })
     }
 
     sendChecklist(args: tg.Opts<'sendChecklist'>) {
@@ -1861,6 +1849,10 @@ export class Telegram extends ApiClient {
 
     getBusinessAccountGifts(args: tg.Opts<'getBusinessAccountGifts'>) {
         return this.callApi('getBusinessAccountGifts', args)
+    }
+
+    getUserGifts(args: tg.Opts<'getUserGifts'>) {
+        return this.callApi('getUserGifts', args)
     }
 
     getChatGifts(args: tg.Opts<'getChatGifts'>) {

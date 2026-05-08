@@ -95,13 +95,11 @@
   "types": "./typings/index.d.ts",
   "dependencies": {
     "@telegraf/types": "git+https://github.com/Leask/telegraf-hardened-types.git#codex/bot-api-9.6-sync",
-    "abort-controller": "^3.0.0",
     "debug": "^4.3.5",
     "mri": "^1.2.0",
     "p-timeout": "^4.1.0",
     "safe-compare": "^1.1.4",
-    "sandwich-stream": "^2.0.2",
-    "tls": "^0.0.1"
+    "sandwich-stream": "^2.0.2"
   },
   "devDependencies": {
     "@types/debug": "^4.1.8",

@@ -10,7 +10,7 @@ Telegraf-hardened - Community-led fork of Telegraf.js. Focusing on stability, st
 <p>Modern Telegram Bot API framework for Node.js</p>
 
 <a href="https://core.telegram.org/bots/api">   
-    <img src="https://img.shields.io/badge/Bot%20API-v7.8-f36caf.svg?style=flat-square" alt="Bot API Version" />
+    <img src="https://img.shields.io/badge/Bot%20API-v9.6-f36caf.svg?style=flat-square" alt="Bot API Version" />
 </a>
 </div>
 
@@ -28,7 +28,7 @@ This fork exists and improves thanks to the amazing contributors:
 
 ### 🎯 Current Status: v2 Strategic Roadmap Fully Closed ✅
 
-Version: 🚀 **v5.1.0 Stable** | 🛡 **Hardened** | API Full 7.8, partly 8.0
+Version: 🚀 **v5.1.0 Stable** | 🛡 **Hardened** | API Full 9.6
 Closed Roadmaps:
 
 -   **[Strategic Roadmap v1](https://github.com/telegraf-hardened/telegraf-hardened/issues/1)**
@@ -44,9 +44,9 @@ Check our current active Roadmap **[Roadmap v3](https://github.com/telegraf-hard
     -   Optional exponential backoff for `getUpdates` requests.
     -   Prevents bot crash-loops during Docker/PM2 restarts when the previous connection is still active.
     -   Opt-in via `bot.launch({ polling: { retryOnConflict: true } })`.
--   ✅ **Native Telegram Stars Support (API 7.8):**
+-   ✅ **Native Telegram Stars, Gifts, and Business Support (API 9.6):**
     -   `getUserGifts()` — Fetch the list of gifts received by a user.
-    -   Full support for digital goods, star transactions, and paid media.
+    -   Full support for digital goods, star transactions, gifts, paid media, and business account methods.
     -   `sendPaidMedia()` — Send exclusive content for stars.
     -   `getStarTransactions()` — Built-in business logic for tracking star revenue.
     -   `refundStarPayment()` — Native refund support for star-based transactions.
@@ -119,7 +119,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN, {
 
 ### Features
 
--   Full [Telegram Bot API 7.8](https://core.telegram.org/bots/api) support
+-   Full [Telegram Bot API 9.6](https://core.telegram.org/bots/api) support
 -   [Excellent TypeScript typings](https://github.com/telegraf-hardened/telegraf-hardened/releases/tag/v5.0.0-beta.3)
 -   [Lightweight](https://packagephobia.com/result?p=telegraf-hardened,node-telegram-bot-api)
 -   [AWS **λ**](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-handler.html)
@@ -133,7 +133,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN, {
 ## 📖 Documentation
 
 The complete documentation for `telegraf-hardened` is available at:
-👉 **[telegraf-hardened/telegraf-docs](https://github.com/telegraf-hardened/telegraf-docs)** > _Note: We are currently updating the docs to include all the new Hardened features like Native Fetch and Telegram Stars._
+👉 **[telegraf-hardened/telegraf-docs](https://github.com/telegraf-hardened/telegraf-docs)** > _Note: We are currently updating the docs to include all the new Hardened features like Native Fetch, Telegram Stars, Gifts, and Business APIs._
 
 ### Example
 
@@ -149,7 +149,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN)
     bot.help((ctx) => ctx.reply('Send me a sticker'))
     bot.on(message('sticker'), (ctx) => ctx.reply('👍'))
     bot.hears('hi', (ctx) => ctx.reply('Hey there'))
-    // Example: Sending paid media (Bot API 7.8)
+    // Example: Sending paid media (Bot API 9.6)
     bot.command('vip', (ctx) => {
         return ctx.telegram.sendPaidMedia(ctx.chat.id, 50, [
             {
