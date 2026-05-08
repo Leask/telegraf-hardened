@@ -51,8 +51,17 @@ export namespace Telegraf {
              * @default false
              */
             retryOnConflict?: boolean
+            /** * Base delay for exponential backoff in milliseconds
+             * @default 1000 (1 second)
+             */
+            conflictRetryDelay?: number
             /** * Maximum delay for exponential backoff in milliseconds
              * @default 60000 (1 minute)
+             */
+            maxConflictRetryDelay?: number
+            /** * Maximum delay for exponential backoff in milliseconds
+             * @default 60000 (1 minute)
+             * @deprecated Use maxConflictRetryDelay instead
              */
             maxRetryDelay?: number
         }
@@ -330,13 +339,14 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
 
         debug('Connecting to Telegram')
         this.botInfo ??= await this.telegram.getMe()
-        onMe?.()
         debug(`Launching @${this.botInfo.username}`)
 
         if (webhook === undefined) {
             await this.telegram.deleteWebhook({ drop_pending_updates })
             debug('Bot started with long polling')
-            await this.startPolling(allowed_updates, cfg.polling)
+            const polling = this.startPolling(allowed_updates, cfg.polling)
+            onMe?.()
+            await polling
             return
         }
 
@@ -366,6 +376,7 @@ export class Telegraf<C extends Context = Context> extends Composer<C> {
         })
 
         debug(`Bot started with webhook @ ${domainOpts.url}`)
+        onMe?.()
     }
 
     stop(reason = 'unspecified') {

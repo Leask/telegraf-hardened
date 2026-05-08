@@ -41,11 +41,8 @@ test('must resist session racing (with sync store)', (t) =>
             bot.use(genericAsyncMiddleware)
 
             bot.on('message', async (ctx) => {
-                if (ctx.session === undefined) {
-                    ctx.session = { count: 1 }
-                } else {
-                    ctx.session.count++
-                }
+                if (ctx.session.count == null) ctx.session.count = 0
+                ctx.session.count++
 
                 // pretend we make an API call, etc
                 await randSleep(200)
@@ -92,11 +89,8 @@ test('must resist session racing (with async store)', (t) =>
             bot.use(session({ store }))
 
             bot.on('message', async (ctx) => {
-                if (ctx.session === undefined) {
-                    ctx.session = { count: 1 }
-                } else {
-                    ctx.session.count++
-                }
+                if (ctx.session.count == null) ctx.session.count = 0
+                ctx.session.count++
 
                 // pretend we make an API call, etc
                 await randSleep(200)

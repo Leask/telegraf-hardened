@@ -1,12 +1,12 @@
 {
     "name": "telegraf-hardened",
-    "version": "v5.1.0",
+    "version": "v6.0.0",
     "description": "Hardened version of Telegraf with community fixes",
     "license": "MIT",
     "author": "The Telegraf-hardened Contributors",
     "repository": {
         "type": "git",
-        "url": "git+ssh://git@github.com/telegraf-hardened/telegraf-hardened.git"
+        "url": "https://github.com/telegraf-hardened/telegraf-hardened.git"
     },
     "bugs": {
         "url": "https://github.com/telegraf-hardened/telegraf-hardened/issues"
@@ -70,7 +70,9 @@
     },
     "scripts": {
         "prepare": "npm run build",
-        "test": "echo 'Hardened release: legacy tests skipped intentionally' && exit 0",
+        "test": "ava test/api.js",
+        "pretest:api-sync": "npm run build",
+        "test:api-sync": "ava test/api.js",
         "build": "tsc && npm run expose",
         "expose": "tsx build/expose.ts types scenes filters format future utils markup session",
         "build:docs": "typedoc src/index.ts",
@@ -93,18 +95,15 @@
     },
     "types": "./typings/index.d.ts",
     "dependencies": {
-        "@telegraf/types": "npm:@telegraf-hardened/types@^9.2.4",
-        "abort-controller": "^3.0.0",
-        "debug": "^4.3.5",
+        "@telegraf/types": "npm:@telegraf-hardened/types@^9.6.0",
+        "debug": "^4.4.3",
         "mri": "^1.2.0",
         "p-timeout": "^4.1.0",
-        "safe-compare": "^1.1.4",
-        "sandwich-stream": "^2.0.2",
-        "tls": "^0.0.1"
+        "safe-compare": "^1.1.4"
     },
     "devDependencies": {
         "@types/debug": "^4.1.8",
-        "@types/node": "^20.4.2",
+        "@types/node": "^20.19.40",
         "@types/safe-compare": "^1.1.0",
         "@typescript-eslint/eslint-plugin": "^6.21.0",
         "@typescript-eslint/parser": "^6.21.0",

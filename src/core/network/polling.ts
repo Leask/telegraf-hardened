@@ -7,6 +7,8 @@ import { TelegramError } from './error'
 import type { Telegraf } from '../../telegraf'
 const debug = d('telegraf:polling')
 const wait = promisify(setTimeout)
+const DEFAULT_CONFLICT_RETRY_DELAY = 1_000
+const DEFAULT_MAX_CONFLICT_RETRY_DELAY = 60_000
 function always<T>(x: T) {
     return () => x
 }
@@ -56,9 +58,15 @@ export class Polling {
                     err.code === 409 &&
                     this.options?.retryOnConflict
                 ) {
-                    const maxDelay = this.options.maxRetryDelay ?? 60000
+                    const baseDelay =
+                        this.options.conflictRetryDelay ??
+                        DEFAULT_CONFLICT_RETRY_DELAY
+                    const maxDelay =
+                        this.options.maxConflictRetryDelay ??
+                        this.options.maxRetryDelay ??
+                        DEFAULT_MAX_CONFLICT_RETRY_DELAY
                     const delay = Math.min(
-                        Math.pow(2, this.retryCount++) * 1000,
+                        baseDelay * Math.pow(2, this.retryCount++),
                         maxDelay
                     )
 
