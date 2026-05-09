@@ -1,7 +1,7 @@
 <header>
 
 <div align="center">
-<!-- <img src="docs/assets/logo.svg" alt="logo" height="90" align="center"> -->
+<img src="https://raw.githubusercontent.com/telegraf-hardened/telegraf-docs/master/assets/logo.svg" alt="logo" height="90" align="center">
 
 <h1 align="center">
 Telegraf-hardened - Community-led fork of Telegraf.js. Focusing on stability, strict TypeScript types, and integrating critical community PRs that were abandoned by upstream. 
