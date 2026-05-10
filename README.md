@@ -123,7 +123,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN, {
 
 -   Full [Telegram Bot API 9.6](https://core.telegram.org/bots/api) support
 -   [Excellent TypeScript typings](https://github.com/telegraf-hardened/telegraf-hardened/releases/tag/v5.0.0-beta.3)
--   [Lightweight](https://packagephobia.com/result?p=telegraf-hardened,node-telegram-bot-api)
+-   Lightweight: compare with [node-telegram-bot-api](https://packagephobia.com/result?p=telegraf-hardened,node-telegram-bot-api) or [original telegraf](https://packagephobia.com/result?p=telegraf-hardened,telegraf)
 -   [AWS **λ**](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-handler.html)
     / [Firebase](https://firebase.google.com/products/functions/)
     / [Glitch](https://glitch.com/edit/#!/dashing-light)
