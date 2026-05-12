@@ -333,13 +333,14 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'))
 
 In production environments (Docker, PM2, K8s), a quick restart might trigger a `409: Conflict` error because Telegram keeps the previous connection open for a short timeout. Telegraf-hardened can handle this automatically:
 
-````ts
+```ts
 bot.launch({
   polling: {
     retryOnConflict: true, // Enable exponential backoff on 409 errors
     maxRetryDelay: 30000,  // Cap retry delay at 30 seconds (default 60s)
   },
 });
+```
 
 ### Webhooks
 
@@ -369,7 +370,7 @@ bot.launch({
     secretToken: randomAlphaNumericString,
   },
 });
-````
+```
 
 Use `createWebhook()` if you want to attach Telegraf to an existing http server.
 
