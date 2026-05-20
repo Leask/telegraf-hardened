@@ -35,6 +35,8 @@ Closed Roadmaps:
 -   **[Roadmap v2](https://github.com/telegraf-hardened/telegraf-hardened/issues/15)**
 -   **[Roadmap v3](https://github.com/telegraf-hardened/telegraf-hardened/issues/20)**
 
+API 10.0 planned
+
 We have successfully integrated all planned critical improvements from the community that were abandoned by the official Telegraf upstream. **Telegraf-hardened is now a feature-complete and stable alternative.**
 
 <!-- Check our current active Roadmap **[Roadmap v3](https://github.com/telegraf-hardened/telegraf-hardened/issues/20)** -->
