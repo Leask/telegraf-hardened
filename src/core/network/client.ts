@@ -181,8 +181,13 @@ function isInputFile(value: unknown): value is InputFile {
     )
 }
 
-function isLinkEntity(value) {
-    return value && hasProp(value, 'type') && value.type === "text_link"
+function isLinkEntity(value: unknown): boolean {
+    return (
+        !!value &&
+        typeof value === 'object' &&
+        hasProp(value, 'type') &&
+        value.type === 'text_link'
+    )
 }
 
 function includesMediaValue(value: unknown): boolean {
