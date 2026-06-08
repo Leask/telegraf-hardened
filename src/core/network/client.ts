@@ -10,7 +10,7 @@ import { hasProp } from '../helpers/check'
 import { InputFile, Opts, Telegram } from '../types/typegram'
 import { compactOptions } from '../helpers/compact'
 import MultipartStream from './multipart-stream'
-import TelegramError from './error'
+import TelegramError, { TelegrafNetworkError } from './error'
 import { URL } from 'url'
 const debug = d('telegraf:client')
 const { isStream } = MultipartStream
@@ -398,58 +398,68 @@ async function answerToWebhook(
     return true
 }
 
-function setErrorField(
-    error: Error,
-    key: 'message' | 'stack',
-    value: string | undefined
-) {
-    try {
-        error[key] = value as never
-        return true
-    } catch {
-        try {
-            Object.defineProperty(error, key, {
-                value,
-                configurable: true,
-                writable: true,
-            })
-            return true
-        } catch {
-            return false
-        }
-    }
+function redactToken(value: string) {
+    return value
+        .replace(/\/(bot|user)(\d+):[^/\s]+(?=\/|$)/g, '/$1$2:[REDACTED]')
+        .replace(/\b(\d{5,}):[A-Za-z0-9_-]{20,}\b/g, '$1:[REDACTED]')
 }
 
-function withCause(error: Error, cause: Error) {
-    try {
-        Object.defineProperty(error, 'cause', {
-            value: cause,
+function errorString(error: unknown, key: 'message' | 'name' | 'stack') {
+    if (!error || typeof error !== 'object') return undefined
+    const value = (error as Record<string, unknown>)[key]
+    return typeof value === 'string' ? value : undefined
+}
+
+function errorCode(error: unknown) {
+    if (!error || typeof error !== 'object') return undefined
+    const value = (error as { code?: unknown }).code
+    const name = errorString(error, 'name')
+    if (typeof value === 'number' && name && name !== 'Error') return name
+    return typeof value === 'string' || typeof value === 'number' ? value : name
+}
+
+function sanitizeCause(error: unknown): unknown {
+    if (typeof error === 'string') return redactToken(error)
+    if (!(error instanceof Error)) return error
+
+    const cause = (error as { cause?: unknown }).cause
+    const options =
+        cause === undefined ? undefined : { cause: sanitizeCause(cause) }
+    const safe = new Error(redactToken(error.message), options)
+    safe.name = error.name
+    if (error.stack) safe.stack = redactToken(error.stack)
+
+    const code = errorCode(error)
+    if (code !== undefined) {
+        Object.defineProperty(safe, 'code', {
+            value: code,
+            enumerable: true,
             configurable: true,
-            writable: true,
         })
-    } catch {
-        // Ignore: this is only a best-effort fallback when redacting native errors.
     }
-    return error
+    return safe
 }
 
-function redactToken(error: Error): never {
-    const redact = (value: string) =>
-        value.replace(/\/(bot|user)(\d+):[^/]+\//, '/$1$2:[REDACTED]/')
-    const message = redact(error.message)
-    const stack = error.stack ? redact(error.stack) : undefined
-    const redacted =
-        setErrorField(error, 'message', message) &&
-        (stack === undefined || setErrorField(error, 'stack', stack))
-    if (redacted) {
-        throw error
-    }
-    const fallback = withCause(new Error(message), error)
-    fallback.name = error.name
-    if (stack !== undefined) {
-        setErrorField(fallback, 'stack', stack)
-    }
-    throw fallback
+function networkError<M extends keyof Telegram>(
+    method: M,
+    options: ApiClient.Options,
+    error: unknown
+): never {
+    const message = errorString(error, 'message')
+    const detail = message ? `: ${redactToken(message)}` : ''
+    throw new TelegrafNetworkError(
+        `Network request failed for ${String(method)}${detail}`,
+        {
+            method: String(method),
+            apiRoot: options.apiRoot,
+            apiMode: options.apiMode,
+            testEnv: options.testEnv,
+        },
+        {
+            cause: sanitizeCause(error),
+            code: errorCode(error),
+        }
+    )
 }
 
 type Response = http.ServerResponse
@@ -548,7 +558,7 @@ class ApiClient {
             apiUrl,
             config,
             options.requestTimeout
-        ).catch(redactToken)
+        ).catch((error: unknown) => networkError(method, options, error))
         if (res.status >= 500) {
             const errorPayload = {
                 error_code: res.status,
