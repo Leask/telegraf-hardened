@@ -177,7 +177,16 @@ function isInputFile(value: unknown): value is InputFile {
         !!value &&
         typeof value === 'object' &&
         ((hasProp(value, 'source') && !!value.source) ||
-            (hasProp(value, 'url') && !!value.url))
+            (hasProp(value, 'url') && !!value.url && !isLinkEntity(value)))
+    )
+}
+
+function isLinkEntity(value: unknown): boolean {
+    return (
+        !!value &&
+        typeof value === 'object' &&
+        hasProp(value, 'type') &&
+        value.type === 'text_link'
     )
 }
 
