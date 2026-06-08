@@ -778,7 +778,9 @@ test('request timeout aborts fetch calls', async (t) => {
 
     const err = await t.throwsAsync(telegram.getMe())
     t.true(err instanceof TelegrafNetworkError)
-    t.is(err.code, 'AbortError')
+    t.is(err.code, undefined)
+    t.is(err.errorName, 'AbortError')
+    t.false(err.transient)
     t.is(err.cause.name, 'AbortError')
 })
 
@@ -809,6 +811,8 @@ test('fetch errors use safe network error boundary', async (t) => {
     t.false(thrown instanceof FetchLikeError)
     t.is(thrown.name, 'TelegrafNetworkError')
     t.is(thrown.code, 'ECONNRESET')
+    t.is(thrown.errorName, 'FetchLikeError')
+    t.true(thrown.transient)
     t.is(thrown.method, 'getMe')
     t.deepEqual(thrown.request, {
         method: 'getMe',
@@ -821,6 +825,8 @@ test('fetch errors use safe network error boundary', async (t) => {
     t.false(thrown.stack.includes('secret'))
     t.is(thrown.cause.name, 'FetchLikeError')
     t.is(thrown.cause.code, 'ECONNRESET')
+    thrown.cause.code = 'CHANGED'
+    t.is(thrown.cause.code, 'CHANGED')
     t.true(thrown.cause.message.includes('[REDACTED]'))
     t.false(thrown.cause.message.includes('secret'))
     t.false(thrown.cause.stack.includes('secret'))
@@ -847,7 +853,9 @@ test('native fetch errors use safe network error boundary', async (t) => {
     t.true(thrown instanceof TelegrafNetworkError)
     t.false(thrown instanceof DOMException)
     t.is(thrown.name, 'TelegrafNetworkError')
-    t.is(thrown.code, 'AbortError')
+    t.is(thrown.code, 20)
+    t.is(thrown.errorName, 'AbortError')
+    t.false(thrown.transient)
     t.true(thrown.message.includes('[REDACTED]'))
     t.false(thrown.message.includes('secret'))
     t.false(thrown.stack.includes('secret'))
@@ -856,6 +864,35 @@ test('native fetch errors use safe network error boundary', async (t) => {
     t.false(thrown.cause.message.includes('secret'))
     t.false(thrown.cause.stack.includes('secret'))
     t.true(err.message.includes('secret'))
+
+    const inspected = util.inspect(thrown, { depth: 5 })
+    t.false(inspected.includes('secret'))
+})
+
+test('plain object fetch errors are sanitized before exposure', async (t) => {
+    const err = {
+        message: 'request to https://api.telegram.org/bot123:secret/getMe failed',
+        stack: 'Error: https://api.telegram.org/bot123:secret/getMe',
+        details: {
+            url: 'https://api.telegram.org/bot123:secret/getMe',
+        },
+        self: undefined,
+    }
+    err.self = err
+
+    const telegram = new Telegram('123:secret', {
+        fetch: async () => {
+            throw err
+        },
+    })
+
+    const thrown = await t.throwsAsync(telegram.getMe())
+    t.true(thrown instanceof TelegrafNetworkError)
+    t.true(thrown.message.includes('[REDACTED]'))
+    t.false(thrown.message.includes('secret'))
+    t.true(thrown.cause.message.includes('[REDACTED]'))
+    t.true(thrown.cause.details.url.includes('[REDACTED]'))
+    t.is(thrown.cause.self, '[Circular]')
 
     const inspected = util.inspect(thrown, { depth: 5 })
     t.false(inspected.includes('secret'))

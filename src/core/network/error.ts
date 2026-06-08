@@ -23,10 +23,14 @@ export interface NetworkErrorRequest {
 export interface NetworkErrorOptions {
     cause?: unknown
     code?: string | number
+    errorName?: string
+    transient?: boolean
 }
 
 export class TelegrafNetworkError extends TelegrafError {
     readonly code?: string | number
+    readonly errorName?: string
+    readonly transient: boolean
 
     constructor(
         message: string,
@@ -35,6 +39,8 @@ export class TelegrafNetworkError extends TelegrafError {
     ) {
         super(message, { cause: options.cause })
         this.code = options.code
+        this.errorName = options.errorName
+        this.transient = options.transient ?? false
     }
 
     get method() {

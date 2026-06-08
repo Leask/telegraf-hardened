@@ -53,7 +53,7 @@ export class Polling {
 
                 if (
                     err instanceof TelegrafNetworkError &&
-                    err.code === 'AbortError'
+                    err.errorName === 'AbortError'
                 ) {
                     return
                 }
@@ -86,7 +86,7 @@ export class Polling {
                 }
 
                 if (
-                    err instanceof TelegrafNetworkError ||
+                    (err instanceof TelegrafNetworkError && err.transient) ||
                     (err instanceof TelegramError && err.code === 429) ||
                     (err instanceof TelegramError && err.code >= 500)
                 ) {
