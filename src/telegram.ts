@@ -576,7 +576,7 @@ export class Telegram extends ApiClient {
      * @param chatId Unique identifier for the target chat or username of the target supergroup or channel (in the format @channelusername)
      */
     getChatMembersCount(chatId: string | number) {
-        return this.callApi('getChatMembersCount', { chat_id: chatId })
+        return this.getChatMemberCount(chatId)
     }
 
     getChatMemberCount(chatId: string | number) {
@@ -1079,12 +1079,14 @@ export class Telegram extends ApiClient {
     /**
      * Edit the text of an ephemeral message. Returns True on success.
      * @param chatId Unique identifier for the target chat or username of the target channel (in the format @channelusername)
+     * @param receiverUserId Identifier of the user who received the message
      * @param ephemeralMessageId Unique identifier of the ephemeral message to edit
      * @param text New text of the message, or `undefined` when replacing the content with `extra.rich_message`
      */
     editEphemeralMessageText(
         chatId: number | string,
-        ephemeralMessageId: string,
+        receiverUserId: number,
+        ephemeralMessageId: number,
         ...[
             text,
             extra,
@@ -1092,6 +1094,7 @@ export class Telegram extends ApiClient {
     ) {
         return this.callApi('editEphemeralMessageText', {
             chat_id: chatId,
+            receiver_user_id: receiverUserId,
             ephemeral_message_id: ephemeralMessageId,
             ...extra,
             ...textOrRichMessage(
@@ -1105,17 +1108,20 @@ export class Telegram extends ApiClient {
     /**
      * Edit the caption of an ephemeral message. Returns True on success.
      * @param chatId Unique identifier for the target chat or username of the target channel (in the format @channelusername)
+     * @param receiverUserId Identifier of the user who received the message
      * @param ephemeralMessageId Unique identifier of the ephemeral message to edit
      * @param caption New caption of the message
      */
     editEphemeralMessageCaption(
         chatId: number | string,
-        ephemeralMessageId: string,
+        receiverUserId: number,
+        ephemeralMessageId: number,
         caption: string | FmtString | undefined,
         extra?: tt.ExtraEditEphemeralMessageCaption
     ) {
         return this.callApi('editEphemeralMessageCaption', {
             chat_id: chatId,
+            receiver_user_id: receiverUserId,
             ephemeral_message_id: ephemeralMessageId,
             ...extra,
             ...fmtCaption({ caption }),
@@ -1125,18 +1131,21 @@ export class Telegram extends ApiClient {
     /**
      * Edit the media content of an ephemeral message. Returns True on success.
      * @param chatId Unique identifier for the target chat or username of the target channel (in the format @channelusername)
+     * @param receiverUserId Identifier of the user who received the message
      * @param ephemeralMessageId Unique identifier of the ephemeral message to edit
      * @param media New media of message
      * @param extra Additional parameters, such as reply_markup
      */
     editEphemeralMessageMedia(
         chatId: number | string,
-        ephemeralMessageId: string,
+        receiverUserId: number,
+        ephemeralMessageId: number,
         media: tt.WrapCaption<tg.InputMedia>,
         extra?: tt.ExtraEditEphemeralMessageMedia
     ) {
         return this.callApi('editEphemeralMessageMedia', {
             chat_id: chatId,
+            receiver_user_id: receiverUserId,
             ephemeral_message_id: ephemeralMessageId,
             media: fmtCaption(media),
             ...extra,
@@ -1146,16 +1155,19 @@ export class Telegram extends ApiClient {
     /**
      * Edit only the reply markup of an ephemeral message. Returns True on success.
      * @param chatId Unique identifier for the target chat or username of the target channel (in the format @channelusername)
+     * @param receiverUserId Identifier of the user who received the message
      * @param ephemeralMessageId Unique identifier of the ephemeral message to edit
      * @param markup A JSON-serialized object for an inline keyboard.
      */
     editEphemeralMessageReplyMarkup(
         chatId: number | string,
-        ephemeralMessageId: string,
+        receiverUserId: number,
+        ephemeralMessageId: number,
         markup: tg.InlineKeyboardMarkup | undefined
     ) {
         return this.callApi('editEphemeralMessageReplyMarkup', {
             chat_id: chatId,
+            receiver_user_id: receiverUserId,
             ephemeral_message_id: ephemeralMessageId,
             reply_markup: markup,
         })
@@ -1164,14 +1176,17 @@ export class Telegram extends ApiClient {
     /**
      * Delete an ephemeral message. Returns True on success.
      * @param chatId Unique identifier for the target chat or username of the target channel (in the format @channelusername)
+     * @param receiverUserId Identifier of the user who received the message
      * @param ephemeralMessageId Unique identifier of the ephemeral message to delete
      */
     deleteEphemeralMessage(
         chatId: number | string,
-        ephemeralMessageId: string
+        receiverUserId: number,
+        ephemeralMessageId: number
     ) {
         return this.callApi('deleteEphemeralMessage', {
             chat_id: chatId,
+            receiver_user_id: receiverUserId,
             ephemeral_message_id: ephemeralMessageId,
         })
     }

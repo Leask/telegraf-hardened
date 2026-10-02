@@ -1,4 +1,4 @@
-> **Update (September 2026):** Active development has resumed! WIP: API 10.3
+> **Development branch (October 2026):** Bot API 10.3 integration is under review for v6.1. It is not released yet. See the [unreleased notes](release-notes/next.md) for corrected API contracts and release prerequisites.
 
 <header>
 
@@ -12,7 +12,7 @@ Telegraf-hardened - Community-led fork of Telegraf.js. Focusing on stability, st
 <p>Modern Telegram Bot API framework for Node.js</p>
 
 <a href="https://core.telegram.org/bots/api">   
-    <img src="https://img.shields.io/badge/Bot%20API-v9.6-f36caf.svg?style=flat-square" alt="Bot API Version" />
+    <img src="https://img.shields.io/badge/Bot%20API-v10.3%20candidate-f36caf.svg?style=flat-square" alt="Bot API Version" />
 </a>
 </div>
 
@@ -30,16 +30,14 @@ This fork exists and improves thanks to the amazing contributors:
 
 ### 🎯 Current Status: v3 Strategic Roadmap Fully Closed ✅
 
-Version: 🚀 **v6.0.0 Stable** | 🛡 **Hardened** | API Full 9.6
+Released baseline: **v6.0.0 / Bot API 9.6**. This branch targets **v6.1 / Bot API 10.3**; see [Roadmap v4](https://github.com/telegraf-hardened/telegraf-hardened/issues/28).
 Closed Roadmaps:
 
 -   **[Strategic Roadmap v1](https://github.com/telegraf-hardened/telegraf-hardened/issues/1)**
 -   **[Roadmap v2](https://github.com/telegraf-hardened/telegraf-hardened/issues/15)**
 -   **[Roadmap v3](https://github.com/telegraf-hardened/telegraf-hardened/issues/20)**
 
-API 10.0 planned
-
-We have successfully integrated all planned critical improvements from the community that were abandoned by the official Telegraf upstream. **Telegraf-hardened is now a feature-complete and stable alternative.**
+The earlier roadmaps are closed. Bot API 10.3 integration, its corrected types release, and community live-bot validation are tracked separately; passing offline tests is not a release announcement.
 
 <!-- Check our current active Roadmap **[Roadmap v3](https://github.com/telegraf-hardened/telegraf-hardened/issues/20)** -->
 
@@ -125,7 +123,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN, {
 
 ### Features
 
--   Full [Telegram Bot API 9.6](https://core.telegram.org/bots/api) support
+-   [Telegram Bot API 10.3](https://core.telegram.org/bots/api) method coverage on this development branch, with runtime payload and TypeScript contract tests
 -   [Excellent TypeScript typings](https://github.com/telegraf-hardened/telegraf-hardened/releases/tag/v5.0.0-beta.3)
 -   Lightweight: compare with [node-telegram-bot-api](https://packagephobia.com/result?p=telegraf-hardened,node-telegram-bot-api) or [original telegraf](https://packagephobia.com/result?p=telegraf-hardened,telegraf)
 -   [AWS **λ**](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-handler.html)
@@ -144,7 +142,7 @@ The complete documentation for `telegraf-hardened` is available at:
 ### Example
 
 ```js
-const { Telegraf } = require('telegraf-hardened')
+const { Telegraf, Input } = require('telegraf-hardened')
 const { message } = require('telegraf-hardened/filters')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
@@ -169,7 +167,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN)
             ctx.from.id
         )
         return ctx.reply(`You have ${total_count} gifts!`)
-    п   })
+    })
     bot.launch()
 })()
 
@@ -181,16 +179,18 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'))
 ```js
 const { Telegraf } = require('telegraf-hardened')
 
-const bot = new Telegraf(process.env.BOT_TOKEN)(async () => {
+const bot = new Telegraf(process.env.BOT_TOKEN)
+
+;(async () => {
     await bot.validateTokenAsync()
     bot.command('oldschool', (ctx) => ctx.reply('Hello'))
     bot.command('hipster', Telegraf.reply('λ'))
     bot.launch({
         polling: {
-        retryOnConflict: true, // Enable exponential backoff on 409 errors
-        maxRetryDelay: 30000,  // Cap retry delay at 30 seconds (default 60s)
-    },
-    )
+            retryOnConflict: true, // Enable exponential backoff on 409 errors
+            maxRetryDelay: 30000, // Cap retry delay at 30 seconds (default 60s)
+        },
+    })
 })()
 
 // Enable graceful stop
@@ -225,6 +225,8 @@ BotFather will give you a _token_, something like `123456789:AbCdefGhIJKlmNoPQRs
 ```shellscript
 $ npm install telegraf-hardened
 ```
+
+This installs the published release, not the unreleased 10.3 work. For development on this branch, use `npm ci` with lifecycle scripts enabled. The corrected types are temporarily pinned to an immutable HTTPS Git commit while [types PR #6](https://github.com/telegraf-hardened/types/pull/6) and [#7](https://github.com/telegraf-hardened/types/pull/7) await integration. Their `prepare` script generates the declaration files, so `npm ci --ignore-scripts` cannot build this candidate. Before publishing v6.1, replace the pin with `npm:@telegraf-hardened/types@^10.3.1` once that corrected version is available on npm. No SSH key is required.
 
 <!--
 or

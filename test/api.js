@@ -8,6 +8,44 @@ const ts = require('typescript')
 const test = require('ava')
 const { Context, Input, TelegrafNetworkError, Telegram } = require('../')
 
+test('typed methods match the independent official Bot API 10.3 snapshot', (t) => {
+    const snapshot = require('./_bot-api-methods.json')
+    t.is(snapshot.methods.length, 185)
+    t.deepEqual(readMethodsFromTypes().sort(), snapshot.methods)
+})
+
+test('README JavaScript examples are syntactically valid', (t) => {
+    const readme = fs.readFileSync(path.join(__dirname, '../README.md'), 'utf8')
+    const examples = [...readme.matchAll(/```js\r?\n([\s\S]*?)```/g)]
+    t.true(examples.length > 0)
+    for (const [index, example] of examples.entries()) {
+        const source = ts.createSourceFile(
+            `readme-${index}.js`,
+            example[1],
+            ts.ScriptTarget.Latest,
+            true,
+            ts.ScriptKind.JS
+        )
+        t.deepEqual(
+            source.parseDiagnostics.map((diagnostic) =>
+                ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
+            ),
+            [],
+            `README JavaScript example ${index + 1}`
+        )
+    }
+})
+
+test('legacy getChatMembersCount delegates to the supported API method', async (t) => {
+    const telegram = new Telegram('token')
+    telegram.callApi = async (method, payload) => {
+        t.is(method, 'getChatMemberCount')
+        t.deepEqual(payload, { chat_id: 42 })
+        return 12
+    }
+    t.is(await telegram.getChatMembersCount(42), 12)
+})
+
 function readTypeFile(name) {
     const typesRoot = path.dirname(
         require.resolve('@telegraf/types/package.json')
@@ -266,6 +304,12 @@ test('Context exposes business update helpers', async (t) => {
 
 const botInfo = { id: 7, is_bot: true, first_name: 'Bot' }
 const ephemeralUser = { id: 99, is_bot: false, first_name: 'User' }
+const guestResult = (text) => ({
+    type: 'article',
+    id: 'answer',
+    title: 'Answer',
+    input_message_content: { message_text: text },
+})
 const privateChat = { id: 42, type: 'private' }
 const ephemeralParams = { receiver_user_id: 99, callback_query_id: 'cbq-1' }
 const inlineMarkup = {
@@ -311,7 +355,7 @@ const ephemeralMessage = {
     chat: privateChat,
     from: botInfo,
     text: 'only you can see this',
-    ephemeral_message_id: 'eph-1',
+    ephemeral_message_id: 1,
 }
 
 const plainMessageUpdate = {
@@ -401,7 +445,8 @@ test('Telegram.editEphemeralMessageText sends plain and formatted text', async (
 
     const result = await telegram.editEphemeralMessageText(
         42,
-        'eph-1',
+        99,
+        1,
         '<b>hi</b>',
         {
             parse_mode: 'HTML',
@@ -409,7 +454,7 @@ test('Telegram.editEphemeralMessageText sends plain and formatted text', async (
             reply_markup: inlineMarkup,
         }
     )
-    await telegram.editEphemeralMessageText('@channel', 'eph-2', bold('new'), {
+    await telegram.editEphemeralMessageText('@channel', 99, 2, bold('new'), {
         parse_mode: 'HTML',
     })
 
@@ -418,8 +463,9 @@ test('Telegram.editEphemeralMessageText sends plain and formatted text', async (
         [
             'editEphemeralMessageText',
             {
+                receiver_user_id: 99,
                 chat_id: 42,
-                ephemeral_message_id: 'eph-1',
+                ephemeral_message_id: 1,
                 parse_mode: 'HTML',
                 link_preview_options: linkPreview,
                 reply_markup: inlineMarkup,
@@ -429,8 +475,9 @@ test('Telegram.editEphemeralMessageText sends plain and formatted text', async (
         [
             'editEphemeralMessageText',
             {
+                receiver_user_id: 99,
                 chat_id: '@channel',
-                ephemeral_message_id: 'eph-2',
+                ephemeral_message_id: 2,
                 // entities from FmtString win over a parse_mode passed in extra
                 parse_mode: undefined,
                 text: 'new',
@@ -444,20 +491,21 @@ test('Telegram.editEphemeralMessageCaption formats, keeps and clears captions', 
     const { bold } = require('../format')
     const { telegram, calls } = recordingTelegram()
 
-    await telegram.editEphemeralMessageCaption(42, 'eph-1', 'caption', {
+    await telegram.editEphemeralMessageCaption(42, 99, 1, 'caption', {
         parse_mode: 'MarkdownV2',
         show_caption_above_media: true,
         reply_markup: inlineMarkup,
     })
-    await telegram.editEphemeralMessageCaption(42, 'eph-1', bold('formatted'))
-    await telegram.editEphemeralMessageCaption(42, 'eph-1', undefined)
+    await telegram.editEphemeralMessageCaption(42, 99, 1, bold('formatted'))
+    await telegram.editEphemeralMessageCaption(42, 99, 1, undefined)
 
     t.deepEqual(calls, [
         [
             'editEphemeralMessageCaption',
             {
+                receiver_user_id: 99,
                 chat_id: 42,
-                ephemeral_message_id: 'eph-1',
+                ephemeral_message_id: 1,
                 parse_mode: 'MarkdownV2',
                 show_caption_above_media: true,
                 reply_markup: inlineMarkup,
@@ -467,8 +515,9 @@ test('Telegram.editEphemeralMessageCaption formats, keeps and clears captions', 
         [
             'editEphemeralMessageCaption',
             {
+                receiver_user_id: 99,
                 chat_id: 42,
-                ephemeral_message_id: 'eph-1',
+                ephemeral_message_id: 1,
                 caption: 'formatted',
                 caption_entities: boldEntities(9),
                 parse_mode: undefined,
@@ -476,46 +525,40 @@ test('Telegram.editEphemeralMessageCaption formats, keeps and clears captions', 
         ],
         [
             'editEphemeralMessageCaption',
-            { chat_id: 42, ephemeral_message_id: 'eph-1', caption: undefined },
+            {
+                receiver_user_id: 99,
+                chat_id: 42,
+                ephemeral_message_id: 1,
+                caption: undefined,
+            },
         ],
     ])
 })
 
-test('Telegram.editEphemeralMessageMedia formats captions and passes caption-less media through', async (t) => {
+test('Telegram.editEphemeralMessageMedia handles formatted and absent captions', async (t) => {
     const { bold } = require('../format')
     const { telegram, calls } = recordingTelegram()
-    const location = { type: 'location', latitude: 51.5, longitude: -0.12 }
-    const venue = {
-        type: 'venue',
-        latitude: 1,
-        longitude: 2,
-        title: 'Venue',
-        address: 'Street 1',
+    const target = {
+        chat_id: 42,
+        receiver_user_id: 99,
+        ephemeral_message_id: 1,
     }
-    const link = { type: 'link', url: 'https://example.test' }
-    const upload = Input.fromBuffer(Buffer.from('bytes'), 'photo.png')
-
     await telegram.editEphemeralMessageMedia(
         42,
-        'eph-1',
+        99,
+        1,
         { type: 'photo', media: 'photo-id', caption: bold('media') },
         { reply_markup: inlineMarkup }
     )
-    await telegram.editEphemeralMessageMedia(42, 'eph-1', {
+    const plain = {
         type: 'video',
         media: 'video-id',
         caption: 'plain',
         parse_mode: 'HTML',
-    })
-    await telegram.editEphemeralMessageMedia(42, 'eph-1', location)
-    await telegram.editEphemeralMessageMedia(42, 'eph-1', venue)
-    await telegram.editEphemeralMessageMedia(42, 'eph-1', link)
-    await telegram.editEphemeralMessageMedia(42, 'eph-1', {
-        type: 'photo',
-        media: upload,
-    })
-
-    const target = { chat_id: 42, ephemeral_message_id: 'eph-1' }
+    }
+    const noCaption = { type: 'document', media: 'document-id' }
+    await telegram.editEphemeralMessageMedia(42, 99, 1, plain)
+    await telegram.editEphemeralMessageMedia(42, 99, 1, noCaption)
     t.deepEqual(calls, [
         [
             'editEphemeralMessageMedia',
@@ -531,54 +574,33 @@ test('Telegram.editEphemeralMessageMedia formats captions and passes caption-les
                 reply_markup: inlineMarkup,
             },
         ],
-        [
-            'editEphemeralMessageMedia',
-            {
-                ...target,
-                media: {
-                    type: 'video',
-                    media: 'video-id',
-                    caption: 'plain',
-                    parse_mode: 'HTML',
-                },
-            },
-        ],
-        ['editEphemeralMessageMedia', { ...target, media: location }],
-        ['editEphemeralMessageMedia', { ...target, media: venue }],
-        ['editEphemeralMessageMedia', { ...target, media: link }],
-        [
-            'editEphemeralMessageMedia',
-            { ...target, media: { type: 'photo', media: upload } },
-        ],
+        ['editEphemeralMessageMedia', { ...target, media: plain }],
+        ['editEphemeralMessageMedia', { ...target, media: noCaption }],
     ])
-    // caption-less media objects are forwarded as-is, not copied
-    t.is(calls[2][1].media, location)
 })
 
 test('Telegram.editEphemeralMessageReplyMarkup sets and removes keyboards', async (t) => {
     const { telegram, calls } = recordingTelegram()
 
-    await telegram.editEphemeralMessageReplyMarkup(42, 'eph-1', inlineMarkup)
-    await telegram.editEphemeralMessageReplyMarkup(
-        '@channel',
-        'eph-1',
-        undefined
-    )
+    await telegram.editEphemeralMessageReplyMarkup(42, 99, 1, inlineMarkup)
+    await telegram.editEphemeralMessageReplyMarkup('@channel', 99, 1, undefined)
 
     t.deepEqual(calls, [
         [
             'editEphemeralMessageReplyMarkup',
             {
+                receiver_user_id: 99,
                 chat_id: 42,
-                ephemeral_message_id: 'eph-1',
+                ephemeral_message_id: 1,
                 reply_markup: inlineMarkup,
             },
         ],
         [
             'editEphemeralMessageReplyMarkup',
             {
+                receiver_user_id: 99,
                 chat_id: '@channel',
-                ephemeral_message_id: 'eph-1',
+                ephemeral_message_id: 1,
                 reply_markup: undefined,
             },
         ],
@@ -588,17 +610,21 @@ test('Telegram.editEphemeralMessageReplyMarkup sets and removes keyboards', asyn
 test('Telegram.deleteEphemeralMessage targets chat and ephemeral id', async (t) => {
     const { telegram, calls } = recordingTelegram()
 
-    t.true(await telegram.deleteEphemeralMessage(42, 'eph-1'))
-    await telegram.deleteEphemeralMessage('@channel', 'eph-2')
+    t.true(await telegram.deleteEphemeralMessage(42, 99, 1))
+    await telegram.deleteEphemeralMessage('@channel', 99, 2)
 
     t.deepEqual(calls, [
         [
             'deleteEphemeralMessage',
-            { chat_id: 42, ephemeral_message_id: 'eph-1' },
+            { receiver_user_id: 99, chat_id: 42, ephemeral_message_id: 1 },
         ],
         [
             'deleteEphemeralMessage',
-            { chat_id: '@channel', ephemeral_message_id: 'eph-2' },
+            {
+                receiver_user_id: 99,
+                chat_id: '@channel',
+                ephemeral_message_id: 2,
+            },
         ],
     ])
 })
@@ -627,8 +653,8 @@ test('ephemeral methods serialize to the Bot API as JSON', async (t) => {
             replace_callback_query_message: true,
         },
     })
-    t.true(await telegram.editEphemeralMessageText(42, 'eph-1', bold('bold')))
-    t.true(await telegram.deleteEphemeralMessage(42, 'eph-1'))
+    t.true(await telegram.editEphemeralMessageText(42, 99, 1, bold('bold')))
+    t.true(await telegram.deleteEphemeralMessage(42, 99, 1))
 
     const endpoint = (method) => `https://api.telegram.org/bot123:abc/${method}`
     t.deepEqual(requests, [
@@ -650,8 +676,9 @@ test('ephemeral methods serialize to the Bot API as JSON', async (t) => {
             contentType: 'application/json',
             // undefined parse_mode is dropped from the wire payload
             body: {
+                receiver_user_id: 99,
                 chat_id: 42,
-                ephemeral_message_id: 'eph-1',
+                ephemeral_message_id: 1,
                 text: 'bold',
                 entities: boldEntities(4),
             },
@@ -659,7 +686,11 @@ test('ephemeral methods serialize to the Bot API as JSON', async (t) => {
         {
             url: endpoint('deleteEphemeralMessage'),
             contentType: 'application/json',
-            body: { chat_id: 42, ephemeral_message_id: 'eph-1' },
+            body: {
+                receiver_user_id: 99,
+                chat_id: 42,
+                ephemeral_message_id: 1,
+            },
         },
     ])
 })
@@ -683,7 +714,7 @@ test('ephemeral parameters and media survive multipart uploads', async (t) => {
     t.true(sent.body.includes('filename="photo.png"'))
 
     const edited = await captureBotApiRequest((telegram) =>
-        telegram.editEphemeralMessageMedia(42, 'eph-1', {
+        telegram.editEphemeralMessageMedia(42, 99, 1, {
             type: 'photo',
             media: Input.fromBuffer(Buffer.from('new-bytes'), 'new.png'),
         })
@@ -691,7 +722,8 @@ test('ephemeral parameters and media survive multipart uploads', async (t) => {
     t.true(edited.result)
     t.is(edited.url, '/bot123:abc/editEphemeralMessageMedia')
     t.regex(edited.headers['content-type'], /^multipart\/form-data/)
-    t.is(getMultipartField(edited.body, 'ephemeral_message_id'), 'eph-1')
+    t.is(getMultipartField(edited.body, 'ephemeral_message_id'), '1')
+    t.is(getMultipartField(edited.body, 'receiver_user_id'), '99')
     const media = JSON.parse(getMultipartField(edited.body, 'media'))
     t.is(media.type, 'photo')
     const attachment = /^attach:\/\/([0-9a-f]+)$/.exec(media.media)
@@ -703,13 +735,13 @@ test('ephemeral parameters and media survive multipart uploads', async (t) => {
 test('Context.ephemeralMessageId resolves from the current update', (t) => {
     const idOf = (update) => new Context(update, {}, botInfo).ephemeralMessageId
 
-    t.is(idOf(callbackUpdate(ephemeralMessage)), 'eph-1')
+    t.is(idOf(callbackUpdate(ephemeralMessage)), 1)
     t.is(
         idOf({
             update_id: 3,
-            message: { ...ephemeralMessage, ephemeral_message_id: 'eph-msg' },
+            message: { ...ephemeralMessage, ephemeral_message_id: 4 },
         }),
-        'eph-msg'
+        4
     )
     t.is(idOf(plainMessageUpdate), undefined)
     // inaccessible callback message (date 0) carries no ephemeral id
@@ -736,21 +768,26 @@ test('Context ephemeral helpers default to the ephemeral message in the update',
     const { telegram, calls } = recordingTelegram()
     const ctx = new Context(callbackUpdate(ephemeralMessage), telegram, botInfo)
 
-    await ctx.editEphemeralMessageText('edited', {
+    await ctx.editEphemeralMessageText(99, 'edited', {
         parse_mode: 'HTML',
         reply_markup: inlineMarkup,
     })
-    await ctx.editEphemeralMessageCaption(bold('caption'), {
+    await ctx.editEphemeralMessageCaption(99, bold('caption'), {
         show_caption_above_media: true,
     })
     await ctx.editEphemeralMessageMedia(
+        99,
         { type: 'photo', media: 'photo-id', caption: 'plain' },
         { reply_markup: inlineMarkup }
     )
-    await ctx.editEphemeralMessageReplyMarkup(inlineMarkup)
-    await ctx.deleteEphemeralMessage()
+    await ctx.editEphemeralMessageReplyMarkup(99, inlineMarkup)
+    await ctx.deleteEphemeralMessage(99)
 
-    const target = { chat_id: 42, ephemeral_message_id: 'eph-1' }
+    const target = {
+        receiver_user_id: 99,
+        chat_id: 42,
+        ephemeral_message_id: 1,
+    }
     t.deepEqual(calls, [
         [
             'editEphemeralMessageText',
@@ -795,20 +832,25 @@ test('Context ephemeral helpers accept an explicit ephemeral message id', async 
         botInfo
     )
     const fromPlain = new Context(plainMessageUpdate, telegram, botInfo)
-    const other = { ephemeral_message_id: 'eph-other' }
+    const other = { ephemeral_message_id: 3 }
 
     for (const ctx of [fromEphemeral, fromPlain]) {
-        await ctx.editEphemeralMessageText('text', { ...other })
-        await ctx.editEphemeralMessageCaption('caption', { ...other })
+        await ctx.editEphemeralMessageText(99, 'text', { ...other })
+        await ctx.editEphemeralMessageCaption(99, 'caption', { ...other })
         await ctx.editEphemeralMessageMedia(
+            99,
             { type: 'photo', media: 'photo-id' },
             { ...other }
         )
-        await ctx.editEphemeralMessageReplyMarkup(undefined, { ...other })
-        await ctx.deleteEphemeralMessage('eph-other')
+        await ctx.editEphemeralMessageReplyMarkup(99, undefined, { ...other })
+        await ctx.deleteEphemeralMessage(99, 3)
     }
 
-    const target = { chat_id: 42, ephemeral_message_id: 'eph-other' }
+    const target = {
+        receiver_user_id: 99,
+        chat_id: 42,
+        ephemeral_message_id: 3,
+    }
     const expected = [
         ['editEphemeralMessageText', { ...target, text: 'text' }],
         ['editEphemeralMessageCaption', { ...target, caption: 'caption' }],
@@ -840,12 +882,13 @@ test('Context ephemeral helpers accept an explicit ephemeral message id', async 
         },
         botInfo
     )
-    await spyCtx.editEphemeralMessageText('text', {
+    await spyCtx.editEphemeralMessageText(99, 'text', {
         ...other,
         parse_mode: 'HTML',
     })
-    await spyCtx.editEphemeralMessageCaption('caption', { ...other })
+    await spyCtx.editEphemeralMessageCaption(99, 'caption', { ...other })
     await spyCtx.editEphemeralMessageMedia(
+        99,
         { type: 'photo', media: 'photo-id' },
         { ...other }
     )
@@ -856,18 +899,19 @@ test('Context ephemeral helpers throw without a target and make no API call', (t
     const { telegram, calls } = recordingTelegram()
     const invoke = {
         editEphemeralMessageText: (ctx, extra) =>
-            ctx.editEphemeralMessageText('text', extra),
+            ctx.editEphemeralMessageText(99, 'text', extra),
         editEphemeralMessageCaption: (ctx, extra) =>
-            ctx.editEphemeralMessageCaption('caption', extra),
+            ctx.editEphemeralMessageCaption(99, 'caption', extra),
         editEphemeralMessageMedia: (ctx, extra) =>
             ctx.editEphemeralMessageMedia(
+                99,
                 { type: 'photo', media: 'photo-id' },
                 extra
             ),
         editEphemeralMessageReplyMarkup: (ctx, extra) =>
-            ctx.editEphemeralMessageReplyMarkup(inlineMarkup, extra),
+            ctx.editEphemeralMessageReplyMarkup(99, inlineMarkup, extra),
         deleteEphemeralMessage: (ctx, extra) =>
-            ctx.deleteEphemeralMessage(extra?.ephemeral_message_id),
+            ctx.deleteEphemeralMessage(99, extra?.ephemeral_message_id),
     }
     t.deepEqual(
         Object.keys(invoke).sort(),
@@ -904,7 +948,7 @@ test('Context ephemeral helpers throw without a target and make no API call', (t
             message: `Telegraf: "${method}" isn't available for "callback_query"`,
         })
         // an explicit id cannot stand in for a missing chat
-        t.throws(() => call(noChat, { ephemeral_message_id: 'eph-1' }), {
+        t.throws(() => call(noChat, { ephemeral_message_id: 1 }), {
             instanceOf: TypeError,
             message: `Telegraf: "${method}" isn't available for "inline_query"`,
         })
@@ -922,7 +966,7 @@ const telegramEphemeralSendCalls = {
         tg.sendLivePhoto({
             chat_id: 42,
             photo: 'photo-id',
-            video: Input.fromBuffer(Buffer.from('clip'), 'clip.mp4'),
+            live_photo: Input.fromBuffer(Buffer.from('clip'), 'clip.mp4'),
             ...extra,
         }),
     sendLocation: (tg, extra) => tg.sendLocation(42, 1, 2, extra),
@@ -967,92 +1011,30 @@ const contextEphemeralSendCalls = {
     sendVoice: (ctx, extra) => ctx.replyWithVoice('voice-id', extra),
 }
 
-test('Bot API 10.3 ephemeral message fields are typed', (t) => {
-    const files = {
-        manage: readTypeFile('manage'),
-        message: readTypeFile('message'),
-        methods: readTypeFile('methods'),
-    }
-    const parameters = getInterface(files.manage, 'EphemeralMessageParameters')
-    const management = Object.fromEntries(
-        EPHEMERAL_MANAGEMENT_METHODS.map((method) => [
-            method,
-            getMethodArgs(files.methods, method),
-        ])
+test('Bot API 10.3 ephemeral message fields are typed', async (t) => {
+    await compileTypeScript(
+        'bot-api-10-3-ephemeral-message-fields-are-typed.ts',
+        [
+            `import { Context, Input, Telegraf, Telegram } from '${packageRoot}'`,
+            `import * as T from '${packageRoot}/types'`,
+            `import { bold } from '${packageRoot}/format'`,
+            'declare const ctx: Context',
+            'declare const telegram: Telegram',
+            'declare const bot: Telegraf',
+            'const parameters: T.EphemeralMessageParameters = { receiver_user_id: 99, replace_callback_query_message: true }',
+            "const reply: T.ReplyParameters = { ephemeral_message_id: 1, poll_option_id: 'a', quote_entities: [] }",
+            "const edit: T.Opts<'editEphemeralMessageText'> = { chat_id: 1, receiver_user_id: 99, ephemeral_message_id: 1, text: 'hi' }",
+            "const caption: T.Opts<'editEphemeralMessageCaption'> = { chat_id: 1, receiver_user_id: 99, ephemeral_message_id: 1, show_caption_above_media: false }",
+            'const id: number | undefined = ctx.ephemeralMessageId',
+            '// @ts-expect-error receiver is required',
+            "const missing: T.Opts<'deleteEphemeralMessage'> = { chat_id: 1, ephemeral_message_id: 1 }",
+            '// @ts-expect-error IDs are integers, not strings',
+            "const wrong: T.ReplyParameters = { ephemeral_message_id: 'eph' }",
+            '// @ts-expect-error a reply must specify one message identifier',
+            'const noTarget: T.ReplyParameters = {}',
+        ].join('\n')
     )
-    const checks = {
-        'EphemeralMessageParameters.receiver_user_id': hasField(
-            parameters,
-            'receiver_user_id',
-            'number'
-        ),
-        'EphemeralMessageParameters.callback_query_id': hasOptionalField(
-            parameters,
-            'callback_query_id',
-            'string'
-        ),
-        'EphemeralMessageParameters.replace_callback_query_message':
-            hasOptionalField(
-                parameters,
-                'replace_callback_query_message',
-                'boolean'
-            ),
-        'Message.ephemeral_message_id': hasOptionalField(
-            getInterface(files.message, 'CommonMessage'),
-            'ephemeral_message_id',
-            'string'
-        ),
-        'ReplyParameters.ephemeral_message_id': hasOptionalField(
-            getInterface(files.message, 'ReplyParameters'),
-            'ephemeral_message_id',
-            'string'
-        ),
-        'editEphemeralMessageText.link_preview_options': hasOptionalField(
-            management.editEphemeralMessageText,
-            'link_preview_options',
-            'LinkPreviewOptions'
-        ),
-        'editEphemeralMessageMedia.media': hasField(
-            management.editEphemeralMessageMedia,
-            'media',
-            'InputMedia<F>'
-        ),
-        'editEphemeralMessageCaption.show_caption_above_media':
-            hasOptionalField(
-                management.editEphemeralMessageCaption,
-                'show_caption_above_media',
-                'true'
-            ),
-        'editEphemeralMessageReplyMarkup.reply_markup': hasOptionalField(
-            management.editEphemeralMessageReplyMarkup,
-            'reply_markup',
-            'InlineKeyboardMarkup'
-        ),
-        'InputMedia caption-less members': ['Location', 'Venue', 'Link'].every(
-            (member) =>
-                hasTypeMember(
-                    files.methods,
-                    'InputMedia<F>',
-                    `InputMedia${member}`
-                )
-        ),
-    }
-    for (const method of EPHEMERAL_MANAGEMENT_METHODS) {
-        checks[`${method}.chat_id`] = hasField(
-            management[method],
-            'chat_id',
-            'number | string'
-        )
-        checks[`${method}.ephemeral_message_id`] = hasField(
-            management[method],
-            'ephemeral_message_id',
-            'string'
-        )
-    }
-    const missing = Object.entries(checks)
-        .filter(([, ok]) => !ok)
-        .map(([name]) => name)
-    t.deepEqual(missing, [])
+    t.pass()
 })
 
 test('ephemeral_message_parameters coverage matches the Bot API types', (t) => {
@@ -1289,25 +1271,25 @@ test('ephemeral message APIs are typed for Telegram and Context', async (t) => {
             'void telegram.forwardMessage(1, 2, 3, { ephemeral_message_parameters })',
             '',
             '// management methods on Telegram',
-            'const t1: Promise<true> = telegram.editEphemeralMessageText(1, "e", bold("x"), { link_preview_options: { is_disabled: true } })',
-            'const t2: Promise<true> = telegram.editEphemeralMessageCaption("@channel", "e", undefined, { show_caption_above_media: true })',
-            'const t3: Promise<true> = telegram.editEphemeralMessageMedia(1, "e", { type: "location", latitude: 0, longitude: 0 })',
-            'const t4: Promise<true> = telegram.editEphemeralMessageReplyMarkup(1, "e", undefined)',
-            'const t5: Promise<true> = telegram.deleteEphemeralMessage(1, "e")',
+            'const t1: Promise<true> = telegram.editEphemeralMessageText(1, 99, 1, bold("x"), { link_preview_options: { is_disabled: true } })',
+            'const t2: Promise<true> = telegram.editEphemeralMessageCaption("@channel", 99, 1, undefined, { show_caption_above_media: true })',
+            'const t3: Promise<true> = telegram.editEphemeralMessageMedia(1, 99, 1, { type: "document", media: "file-id" })',
+            'const t4: Promise<true> = telegram.editEphemeralMessageReplyMarkup(1, 99, 1, undefined)',
+            'const t5: Promise<true> = telegram.deleteEphemeralMessage(1, 99, 1)',
             '// @ts-expect-error the ephemeral id is positional on Telegram',
-            'void telegram.editEphemeralMessageText(1, "e", "x", { ephemeral_message_id: "other" })',
-            '// @ts-expect-error ephemeral message ids are strings',
-            'void telegram.deleteEphemeralMessage(1, 5)',
+            'void telegram.editEphemeralMessageText(1, 99, 1, "x", { ephemeral_message_id: 3 })',
+            '// @ts-expect-error ephemeral message ids are numbers',
+            'void telegram.deleteEphemeralMessage(1, 99, "eph")',
             '',
             '// management helpers on Context',
-            'const c1: Promise<true> = ctx.editEphemeralMessageText("x", { ephemeral_message_id: "other", parse_mode: "HTML" })',
-            'const c2: Promise<true> = ctx.editEphemeralMessageCaption(bold("x"))',
-            'const c3: Promise<true> = ctx.editEphemeralMessageMedia({ type: "photo", media: "id", caption: bold("x") })',
-            'const c4: Promise<true> = ctx.editEphemeralMessageReplyMarkup(undefined, { ephemeral_message_id: "other" })',
-            'const c5: Promise<true> = ctx.deleteEphemeralMessage()',
-            'const currentId: string | undefined = ctx.ephemeralMessageId',
+            'const c1: Promise<true> = ctx.editEphemeralMessageText(99, "x", { ephemeral_message_id: 3, parse_mode: "HTML" })',
+            'const c2: Promise<true> = ctx.editEphemeralMessageCaption(99, bold("x"))',
+            'const c3: Promise<true> = ctx.editEphemeralMessageMedia(99, { type: "photo", media: "id", caption: bold("x") })',
+            'const c4: Promise<true> = ctx.editEphemeralMessageReplyMarkup(99, undefined, { ephemeral_message_id: 3 })',
+            'const c5: Promise<true> = ctx.deleteEphemeralMessage(99)',
+            'const currentId: number | undefined = ctx.ephemeralMessageId',
             '// @ts-expect-error text is positional',
-            'void ctx.editEphemeralMessageText("x", { text: "y" })',
+            'void ctx.editEphemeralMessageText(99, "x", { text: "y" })',
             '',
             '// pre-10.3 signatures keep compiling',
             'const legacyReply: Convenience.ExtraReplyMessage = { reply_parameters: { message_id: 1 } }',
@@ -1595,7 +1577,7 @@ test('Telegram.editEphemeralMessageText edits into rich messages', async (t) => 
     const { telegram, calls } = recordingTelegram()
 
     t.true(
-        await telegram.editEphemeralMessageText(42, 'eph-1', undefined, {
+        await telegram.editEphemeralMessageText(42, 99, 1, undefined, {
             rich_message: richBlocks,
             reply_markup: inlineMarkup,
         })
@@ -1605,8 +1587,9 @@ test('Telegram.editEphemeralMessageText edits into rich messages', async (t) => 
         [
             'editEphemeralMessageText',
             {
+                receiver_user_id: 99,
                 chat_id: 42,
-                ephemeral_message_id: 'eph-1',
+                ephemeral_message_id: 1,
                 reply_markup: inlineMarkup,
                 rich_message: richBlocks,
             },
@@ -1638,7 +1621,7 @@ test('text edits require exactly one of text or rich_message', (t) => {
         [
             'editEphemeralMessageText',
             (extra, text) =>
-                telegram.editEphemeralMessageText(42, 'eph-1', text, extra),
+                telegram.editEphemeralMessageText(42, 99, 1, text, extra),
         ],
     ]
 
@@ -1671,16 +1654,16 @@ test('Context text edit helpers forward rich messages', async (t) => {
         rich_message: richMarkdown,
         reply_markup: inlineMarkup,
     })
-    await fromMessage.editEphemeralMessageText(undefined, {
+    await fromMessage.editEphemeralMessageText(99, undefined, {
         rich_message: richBlocks,
     })
-    await fromMessage.editEphemeralMessageText(undefined, {
+    await fromMessage.editEphemeralMessageText(99, undefined, {
         rich_message: richMarkdown,
-        ephemeral_message_id: 'eph-other',
+        ephemeral_message_id: 3,
     })
     // text edits keep working through the same helpers
     await fromMessage.editMessageText('plain', { parse_mode: 'HTML' })
-    await fromMessage.editEphemeralMessageText('plain')
+    await fromMessage.editEphemeralMessageText(99, 'plain')
 
     const untouched = {
         entities: undefined,
@@ -1711,16 +1694,18 @@ test('Context text edit helpers forward rich messages', async (t) => {
         [
             'editEphemeralMessageText',
             {
+                receiver_user_id: 99,
                 chat_id: 42,
-                ephemeral_message_id: 'eph-1',
+                ephemeral_message_id: 1,
                 rich_message: richBlocks,
             },
         ],
         [
             'editEphemeralMessageText',
             {
+                receiver_user_id: 99,
                 chat_id: 42,
-                ephemeral_message_id: 'eph-other',
+                ephemeral_message_id: 3,
                 rich_message: richMarkdown,
             },
         ],
@@ -1736,14 +1721,19 @@ test('Context text edit helpers forward rich messages', async (t) => {
         ],
         [
             'editEphemeralMessageText',
-            { chat_id: 42, ephemeral_message_id: 'eph-1', text: 'plain' },
+            {
+                receiver_user_id: 99,
+                chat_id: 42,
+                ephemeral_message_id: 1,
+                text: 'plain',
+            },
         ],
     ])
 
     // invalid combinations are rejected before reaching the API
     t.throws(
         () =>
-            fromMessage.editEphemeralMessageText('text', {
+            fromMessage.editEphemeralMessageText(99, 'text', {
                 rich_message: richMarkdown,
             }),
         {
@@ -1777,7 +1767,7 @@ test('rich messages and rich edits serialize to the Bot API as JSON', async (t) 
     await telegram.editMessageText(42, 12, undefined, undefined, {
         rich_message: richBlocks,
     })
-    await telegram.editEphemeralMessageText(42, 'eph-1', undefined, {
+    await telegram.editEphemeralMessageText(42, 99, 1, undefined, {
         rich_message: richMarkdown,
     })
 
@@ -1807,8 +1797,9 @@ test('rich messages and rich edits serialize to the Bot API as JSON', async (t) 
             'editEphemeralMessageText',
             'application/json',
             {
+                receiver_user_id: 99,
                 chat_id: 42,
-                ephemeral_message_id: 'eph-1',
+                ephemeral_message_id: 1,
                 rich_message: richMarkdown,
             },
         ],
@@ -1821,9 +1812,11 @@ test('Bot API objects with a url are not mistaken for URL files', async (t) => {
     const webApp = { url: 'https://example.test/app' }
 
     await telegram.sendRichMessage({ chat_id: 1, rich_message: richBlocks })
-    await telegram.editMessageMedia(1, 2, undefined, link)
-    await telegram.editEphemeralMessageMedia(1, 'eph-1', link)
-    await telegram.sendChatJoinRequestWebApp({ query_id: 'q', web_app: webApp })
+    await telegram.sendPoll(1, 'Choose', [{ text: 'Link', media: link }])
+    await telegram.sendChatJoinRequestWebApp({
+        chat_join_request_query_id: 'q',
+        web_app_url: webApp.url,
+    })
     await telegram.setChatMenuButton({
         chatId: 1,
         menuButton: { type: 'web_app', text: 'App', web_app: webApp },
@@ -1854,15 +1847,14 @@ test('Bot API objects with a url are not mistaken for URL files', async (t) => {
         requests.map(([method, kind]) => [method, kind]),
         [
             ['sendRichMessage', 'application/json'],
-            ['editMessageMedia', 'application/json'],
-            ['editEphemeralMessageMedia', 'application/json'],
+            ['sendPoll', 'application/json'],
             ['sendChatJoinRequestWebApp', 'application/json'],
             ['setChatMenuButton', 'application/json'],
             ['sendMessage', 'application/json'],
         ]
     )
-    t.deepEqual(requests[1][2].media, link)
-    t.deepEqual(requests[3][2].web_app, webApp)
+    t.deepEqual(requests[1][2].options[0].media, link)
+    t.is(requests[2][2].web_app_url, webApp.url)
 })
 
 test('URL files are still downloaded and uploaded', async (t) => {
@@ -2431,7 +2423,7 @@ test('Bot API 10.3 rich message fields are typed', (t) => {
 // Telegram entry points for every method whose Bot API args accept rich_message
 const telegramRichMessageCalls = {
     editEphemeralMessageText: (tg, rich_message) =>
-        tg.editEphemeralMessageText(42, 'eph-1', undefined, { rich_message }),
+        tg.editEphemeralMessageText(42, 99, 1, undefined, { rich_message }),
     editMessageText: (tg, rich_message) =>
         tg.editMessageText(42, 12, undefined, undefined, { rich_message }),
     sendRichMessage: (tg, rich_message) =>
@@ -2442,7 +2434,7 @@ const telegramRichMessageCalls = {
 // Context helpers reaching those methods, keyed by helper name
 const contextRichMessageCalls = {
     editEphemeralMessageText: (ctx, rich_message) =>
-        ctx.editEphemeralMessageText(undefined, { rich_message }),
+        ctx.editEphemeralMessageText(99, undefined, { rich_message }),
     editMessageText: (ctx, rich_message) =>
         ctx.editMessageText(undefined, { rich_message }),
     replyWithRichMessage: (ctx, rich_message) =>
@@ -2530,15 +2522,15 @@ test('rich message APIs are typed for Telegram and Context', async (t) => {
             '// editing into rich messages',
             'void telegram.editMessageText(1, 2, undefined, undefined, { rich_message: rich, reply_markup: { inline_keyboard: [] } })',
             'void telegram.editMessageText(undefined, undefined, "inline", undefined, { rich_message: withMedia })',
-            'void telegram.editEphemeralMessageText(1, "eph", undefined, { rich_message: rich })',
+            'void telegram.editEphemeralMessageText(1, 99, 1, undefined, { rich_message: rich })',
             'void ctx.editMessageText(undefined, { rich_message: rich })',
-            'void ctx.editEphemeralMessageText(undefined, { rich_message: rich, ephemeral_message_id: "eph" })',
+            'void ctx.editEphemeralMessageText(99, undefined, { rich_message: rich, ephemeral_message_id: 1 })',
             '',
             '// text edits keep their signatures',
             'void telegram.editMessageText(1, 2, undefined, "hi", { parse_mode: "HTML" })',
-            'void telegram.editEphemeralMessageText(1, "eph", "hi")',
+            'void telegram.editEphemeralMessageText(1, 99, 1, "hi")',
             'void ctx.editMessageText("hi")',
-            'void ctx.editEphemeralMessageText("hi", { ephemeral_message_id: "eph" })',
+            'void ctx.editEphemeralMessageText(99, "hi", { ephemeral_message_id: 1 })',
             '',
             '// return_bots',
             'void telegram.getChatAdministrators(1, { return_bots: true })',
@@ -2565,11 +2557,11 @@ test('rich message APIs are typed for Telegram and Context', async (t) => {
             '// @ts-expect-error text and rich_message are mutually exclusive',
             'void ctx.editMessageText("hi", { rich_message: rich })',
             '// @ts-expect-error text and rich_message are mutually exclusive',
-            'void telegram.editEphemeralMessageText(1, "eph", "hi", { rich_message: rich })',
+            'void telegram.editEphemeralMessageText(1, 99, 1, "hi", { rich_message: rich })',
             '// @ts-expect-error one of text or rich_message is required',
             'void ctx.editMessageText(undefined)',
             '// @ts-expect-error one of text or rich_message is required',
-            'void telegram.editEphemeralMessageText(1, "eph", undefined, { parse_mode: "HTML" })',
+            'void telegram.editEphemeralMessageText(1, 99, 1, undefined, { parse_mode: "HTML" })',
             '',
             'void [sent, draft, readBack, direct, directDraft, notAButton]',
         ].join('\n')
@@ -2682,169 +2674,75 @@ function offlineTelegraf(results = {}) {
 }
 
 test('Telegram guest and managed bot wrappers pass arguments through unchanged', async (t) => {
-    const results = {
-        answerGuestQuery: { message_id: 77 },
-        getManagedBotAccessSettings: { can_manage_without_premium: true },
-        setManagedBotAccessSettings: true,
-        getUserPersonalChatMessages: [guestMessage],
-    }
-    const calls = []
-    const telegram = new Telegram('token')
-    telegram.callApi = (method, payload) => {
-        calls.push([method, payload])
-        return results[method]
-    }
-    const answer = {
-        guest_query_id: 'gq-1',
-        text: '<b>hi</b>',
-        parse_mode: 'HTML',
-        reply_markup: inlineMarkup,
-    }
-    const getSettings = { user_id: 555 }
-    const setSettings = {
-        user_id: 555,
-        access_settings: {
-            can_manage_without_premium: true,
-            allow_bot_to_bot_messages: false,
+    const { telegram, calls } = recordingTelegram()
+    const args = {
+        answerGuestQuery: { guest_query_id: 'gq-1', result: guestResult('hi') },
+        getManagedBotAccessSettings: { user_id: 555 },
+        setManagedBotAccessSettings: {
+            user_id: 555,
+            is_access_restricted: false,
         },
+        getUserPersonalChatMessages: { user_id: 555, limit: 20 },
     }
-    const personal = { user_id: 555, offset: 10, limit: 20 }
-
-    t.is(await telegram.answerGuestQuery(answer), results.answerGuestQuery)
-    t.is(
-        await telegram.getManagedBotAccessSettings(getSettings),
-        results.getManagedBotAccessSettings
-    )
-    t.true(await telegram.setManagedBotAccessSettings(setSettings))
-    t.is(
-        await telegram.getUserPersonalChatMessages(personal),
-        results.getUserPersonalChatMessages
-    )
-
-    t.deepEqual(calls, [
-        ['answerGuestQuery', answer],
-        ['getManagedBotAccessSettings', getSettings],
-        ['setManagedBotAccessSettings', setSettings],
-        ['getUserPersonalChatMessages', personal],
-    ])
-    for (const [index, args] of [
-        answer,
-        getSettings,
-        setSettings,
-        personal,
-    ].entries()) {
-        t.is(calls[index][1], args)
+    for (const [method, payload] of Object.entries(args)) {
+        await telegram[method](payload)
+        t.is(calls.at(-1)[1], payload)
     }
+    t.deepEqual(calls, Object.entries(args))
 })
 
 test('guest answers and access settings serialize to the Bot API as JSON', async (t) => {
-    const requests = []
-    const telegram = new Telegram('123:abc', {
-        fetch: async (url, init) => {
-            const method = String(url).split('/').pop()
-            requests.push([
-                method,
-                init.headers['content-type'],
-                JSON.parse(init.body),
-            ])
-            const result =
-                method === 'answerGuestQuery'
-                    ? { message_id: 77 }
-                    : method === 'getManagedBotAccessSettings'
-                    ? { allow_bot_to_bot_messages: true }
-                    : true
-            return {
-                status: 200,
-                statusText: 'OK',
-                json: async () => ({ ok: true, result }),
-            }
-        },
+    const { bot, requests } = offlineTelegraf({
+        answerGuestQuery: { inline_message_id: 'guest-1' },
     })
-
+    const result = guestResult('hi')
     t.deepEqual(
-        await telegram.answerGuestQuery({
-            guest_query_id: 'gq-1',
-            text: 'hi',
-            parse_mode: undefined,
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: 'Docs', url: 'https://example.test' }],
-                ],
-            },
-        }),
-        { message_id: 77 }
+        await bot.telegram.answerGuestQuery({ guest_query_id: 'gq-1', result }),
+        { inline_message_id: 'guest-1' }
     )
-    t.deepEqual(await telegram.getManagedBotAccessSettings({ user_id: 555 }), {
-        allow_bot_to_bot_messages: true,
-    })
     t.true(
-        await telegram.setManagedBotAccessSettings({
+        await bot.telegram.setManagedBotAccessSettings({
             user_id: 555,
-            access_settings: { allow_bot_to_bot_messages: true },
+            is_access_restricted: true,
+            added_user_ids: [99],
         })
     )
-
     t.deepEqual(requests, [
-        [
-            'answerGuestQuery',
-            'application/json',
-            {
-                guest_query_id: 'gq-1',
-                text: 'hi',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: 'Docs', url: 'https://example.test' }],
-                    ],
-                },
-            },
-        ],
-        ['getManagedBotAccessSettings', 'application/json', { user_id: 555 }],
+        ['answerGuestQuery', { guest_query_id: 'gq-1', result }],
         [
             'setManagedBotAccessSettings',
-            'application/json',
-            {
-                user_id: 555,
-                access_settings: { allow_bot_to_bot_messages: true },
-            },
+            { user_id: 555, is_access_restricted: true, added_user_ids: [99] },
         ],
     ])
 })
 
 test('Context.answerGuestQuery answers the guest query of the update', async (t) => {
-    const { bold } = require('../format')
-    const { telegram, calls } = recordingTelegram({ message_id: 77 })
+    const { telegram, calls } = recordingTelegram({
+        inline_message_id: 'guest-1',
+    })
     const ctx = new Context(guestMessageUpdate, telegram, botInfo)
-
-    t.deepEqual(await ctx.answerGuestQuery('plain'), { message_id: 77 })
-    await ctx.answerGuestQuery(bold('formatted'), {
-        parse_mode: 'HTML',
-        reply_markup: inlineMarkup,
-    })
-    await ctx.answerGuestQuery('<i>html</i>', {
-        parse_mode: 'HTML',
-        // not allowed by the types; positional values must still win for JS callers
-        guest_query_id: 'other',
-        text: 'ignored',
-    })
-
-    t.deepEqual(calls, [
-        ['answerGuestQuery', { text: 'plain', guest_query_id: 'gq-1' }],
-        [
+    const results = [
+        guestResult('plain'),
+        { type: 'photo', id: 'photo', photo_file_id: 'photo-id' },
+        {
+            type: 'article',
+            id: 'rich',
+            title: 'Rich',
+            input_message_content: { rich_message: richMarkdown },
+        },
+    ]
+    for (const result of results) {
+        t.deepEqual(await ctx.answerGuestQuery(result), {
+            inline_message_id: 'guest-1',
+        })
+    }
+    t.deepEqual(
+        calls,
+        results.map((result) => [
             'answerGuestQuery',
-            {
-                reply_markup: inlineMarkup,
-                // entities from FmtString win over a parse_mode passed in extra
-                parse_mode: undefined,
-                text: 'formatted',
-                entities: boldEntities(9),
-                guest_query_id: 'gq-1',
-            },
-        ],
-        [
-            'answerGuestQuery',
-            { parse_mode: 'HTML', text: '<i>html</i>', guest_query_id: 'gq-1' },
-        ],
-    ])
+            { guest_query_id: 'gq-1', result },
+        ])
+    )
 })
 
 test('Context.answerGuestQuery throws without a guest query and makes no API call', (t) => {
@@ -2957,7 +2855,7 @@ test('Context derives chat and from for the new update types', async (t) => {
 
 test('Telegraf routes the new update types to their handlers', async (t) => {
     const { bot, requests } = offlineTelegraf({
-        answerGuestQuery: { message_id: 77 },
+        answerGuestQuery: { inline_message_id: 'guest-1' },
     })
     const seen = []
 
@@ -2966,7 +2864,9 @@ test('Telegraf routes the new update types to their handlers', async (t) => {
     })
     bot.on('guest_message', async (ctx) => {
         seen.push(['guest_message', ctx.guestMessage.text])
-        t.deepEqual(await ctx.answerGuestQuery('hello'), { message_id: 77 })
+        t.deepEqual(await ctx.answerGuestQuery(guestResult('hello')), {
+            inline_message_id: 'guest-1',
+        })
     })
     bot.on('subscription', (ctx) => {
         seen.push(['subscription', ctx.subscription.state, ctx.from.id])
@@ -3004,7 +2904,10 @@ test('Telegraf routes the new update types to their handlers', async (t) => {
         ['managed_bot', 555],
     ])
     t.deepEqual(requests, [
-        ['answerGuestQuery', { text: 'hello', guest_query_id: 'gq-1' }],
+        [
+            'answerGuestQuery',
+            { result: guestResult('hello'), guest_query_id: 'gq-1' },
+        ],
         ['sendMessage', { chat_id: 42, text: 'stopped' }],
     ])
 })
@@ -3073,222 +2976,57 @@ test('Context has a getter for every update type in the Bot API types', (t) => {
     }
 })
 
-test('Bot API 10.3 guest mode, subscription and managed bot fields are typed', (t) => {
-    const files = {
-        manage: readTypeFile('manage'),
-        message: readTypeFile('message'),
-        methods: readTypeFile('methods'),
-        update: readTypeFile('update'),
-    }
-    const answer = getMethodArgs(files.methods, 'answerGuestQuery')
-    const getSettings = getMethodArgs(
-        files.methods,
-        'getManagedBotAccessSettings'
+test('Bot API 10.3 guest mode, subscription and managed bot fields are typed', async (t) => {
+    await compileTypeScript(
+        'bot-api-10-3-guest-mode-subscription-and-managed-bot-fields-are-typed.ts',
+        [
+            `import { Context, Input, Telegraf, Telegram } from '${packageRoot}'`,
+            `import * as T from '${packageRoot}/types'`,
+            `import { bold } from '${packageRoot}/format'`,
+            'declare const ctx: Context',
+            'declare const telegram: Telegram',
+            'declare const bot: Telegraf',
+            "const result: T.InlineQueryResult = { type: 'article', id: 'a', title: 'Answer', input_message_content: { message_text: 'hi' } }",
+            "const answer: T.Opts<'answerGuestQuery'> = { guest_query_id: 'q', result }",
+            "const sent: T.SentGuestMessage = { inline_message_id: 'i' }",
+            'const settings: T.BotAccessSettings = { is_access_restricted: true, added_users: [] }',
+            "const set: T.Opts<'setManagedBotAccessSettings'> = { user_id: 1, is_access_restricted: true, added_user_ids: [2] }",
+            "const community: T.Community = { id: 1, name: 'Community' }",
+            'const added: T.CommunityChatAdded = { community }',
+            'const joined: T.CommunityChatJoined = { community }',
+            'const removed: T.CommunityChatRemoved = {}',
+            '// @ts-expect-error guest answers are inline query results, not top-level text',
+            "const wrong: T.Opts<'answerGuestQuery'> = { guest_query_id: 'q', text: 'hi' }",
+            '// @ts-expect-error access settings fields are top-level parameters',
+            "const wrongAccess: T.Opts<'setManagedBotAccessSettings'> = { user_id: 1, access_settings: settings }",
+        ].join('\n')
     )
-    const setSettings = getMethodArgs(
-        files.methods,
-        'setManagedBotAccessSettings'
-    )
-    const subscription = getInterface(files.manage, 'BotSubscriptionUpdated')
-    const stopped = getInterface(files.message, 'MessageGenerationStopped')
-    const accessSettings = getInterface(files.manage, 'BotAccessSettings')
-    const community = getInterface(files.manage, 'Community')
-    const checks = {
-        'Update.guest_message': hasField(
-            getInterface(files.update, 'GuestQueryUpdate'),
-            'guest_message',
-            'Message'
-        ),
-        'Update.subscription': hasField(
-            getInterface(files.update, 'BotSubscriptionUpdate'),
-            'subscription',
-            'BotSubscriptionUpdated'
-        ),
-        'Update.stopped_message_generation': hasField(
-            getInterface(files.update, 'StoppedMessageGenerationUpdate'),
-            'stopped_message_generation',
-            'MessageGenerationStopped'
-        ),
-        'Update union includes the 10.3 updates': [
-            'Update.GuestQueryUpdate',
-            'Update.BotSubscriptionUpdate',
-            'Update.StoppedMessageGenerationUpdate',
-            'Update.ManagedBotUpdate',
-        ].every((member) => hasTypeMember(files.update, 'Update', member)),
-        BotSubscriptionUpdated:
-            hasField(subscription, 'user', 'User') &&
-            hasField(subscription, 'invoice_payload', 'string') &&
-            hasField(subscription, 'state', '"active" | "canceled" | "failed"'),
-        MessageGenerationStopped:
-            hasField(stopped, 'chat', 'Chat') &&
-            hasField(stopped, 'draft_id', 'number') &&
-            hasOptionalField(stopped, 'message_thread_id', 'number'),
-        'Message.guest_query_id': hasOptionalField(
-            getInterface(files.message, 'CommonMessage'),
-            'guest_query_id',
-            'string'
-        ),
-        'answerGuestQuery args':
-            hasField(answer, 'guest_query_id', 'string') &&
-            hasField(answer, 'text', 'string') &&
-            hasOptionalField(answer, 'parse_mode', 'ParseMode') &&
-            hasOptionalField(answer, 'entities', 'MessageEntity[]') &&
-            hasOptionalField(answer, 'reply_markup', 'InlineKeyboardMarkup'),
-        'answerGuestQuery returns SentGuestMessage':
-            getMethodReturnType(files.methods, 'answerGuestQuery') ===
-                'SentGuestMessage' &&
-            hasField(
-                getInterface(files.message, 'SentGuestMessage'),
-                'message_id',
-                'number'
-            ),
-        BotAccessSettings:
-            hasOptionalField(
-                accessSettings,
-                'can_manage_without_premium',
-                'boolean'
-            ) &&
-            hasOptionalField(
-                accessSettings,
-                'allow_bot_to_bot_messages',
-                'boolean'
-            ),
-        'getManagedBotAccessSettings returns BotAccessSettings':
-            hasField(getSettings, 'user_id', 'number') &&
-            getMethodReturnType(
-                files.methods,
-                'getManagedBotAccessSettings'
-            ) === 'BotAccessSettings',
-        'setManagedBotAccessSettings.access_settings':
-            hasField(setSettings, 'user_id', 'number') &&
-            hasField(setSettings, 'access_settings', 'BotAccessSettings') &&
-            getMethodReturnType(
-                files.methods,
-                'setManagedBotAccessSettings'
-            ) === 'true',
-        Community:
-            hasField(community, 'id', 'string') &&
-            hasField(community, 'title', 'string') &&
-            hasOptionalField(community, 'photo', 'ChatPhoto') &&
-            hasOptionalField(community, 'invite_link', 'string'),
-        'ChatFullInfo.community': hasOptionalField(
-            files.manage,
-            'community',
-            'Community'
-        ),
-        'Message.community_chat_*':
-            hasField(
-                getInterface(files.message, 'CommunityChatAddedMessage'),
-                'community_chat_added',
-                'CommunityChatAdded'
-            ) &&
-            hasField(
-                getInterface(files.message, 'CommunityChatRemovedMessage'),
-                'community_chat_removed',
-                'CommunityChatRemoved'
-            ) &&
-            hasField(
-                getInterface(files.message, 'CommunityChatJoinedMessage'),
-                'community_chat_joined',
-                'CommunityChatJoined'
-            ),
-        'CommunityChat* carry the community': [
-            'CommunityChatAdded',
-            'CommunityChatRemoved',
-            'CommunityChatJoined',
-        ].every((name) =>
-            hasField(getInterface(files.manage, name), 'community', 'Community')
-        ),
-    }
-    const missing = Object.entries(checks)
-        .filter(([, ok]) => !ok)
-        .map(([name]) => name)
-    t.deepEqual(missing, [])
+    t.pass()
 })
 
 test('guest mode, subscription and managed bot APIs are typed', async (t) => {
     await compileTypeScript(
-        'guest-mode-types.ts',
+        'guest-mode-subscription-and-managed-bot-apis-are-typed.ts',
         [
-            `import { Context, Telegraf, Telegram } from '${packageRoot}'`,
-            `import { message } from '${packageRoot}/filters'`,
+            `import { Context, Input, Telegraf, Telegram } from '${packageRoot}'`,
+            `import * as T from '${packageRoot}/types'`,
             `import { bold } from '${packageRoot}/format'`,
-            `import type { BotAccessSettings, BotSubscriptionUpdated, Chat, ChatFullInfo, Community, Convenience, ManagedBotUpdated, Message, MessageGenerationStopped, SentGuestMessage, Update, User } from '${packageRoot}/types'`,
-            '',
-            'declare const bot: Telegraf',
+            'declare const ctx: Context',
             'declare const telegram: Telegram',
-            'declare const anyCtx: Context',
-            '',
-            'bot.on("guest_message", async (ctx) => {',
-            '    const guest: Message = ctx.guestMessage',
-            '    const answered: SentGuestMessage = await ctx.answerGuestQuery(bold("hi"), { reply_markup: { inline_keyboard: [] } })',
-            '    void [guest, answered]',
-            '})',
-            'bot.on("subscription", (ctx) => {',
-            '    const change: BotSubscriptionUpdated = ctx.subscription',
-            '    const state: "active" | "canceled" | "failed" = ctx.subscription.state',
-            '    const subscriber: User = ctx.from',
-            '    void [change, state, subscriber]',
-            '})',
-            'bot.on("stopped_message_generation", async (ctx) => {',
-            '    const stopped: MessageGenerationStopped = ctx.stoppedMessageGeneration',
-            '    const chat: Chat = ctx.chat',
-            '    await ctx.sendRichMessageDraft(stopped.draft_id, { markdown: "stopped" })',
-            '    void chat',
-            '})',
-            'bot.on("managed_bot", async (ctx) => {',
-            '    const update: ManagedBotUpdated = ctx.managedBot',
-            '    const creator: User = ctx.from',
-            '    const settings: BotAccessSettings = await ctx.telegram.getManagedBotAccessSettings({ user_id: update.bot.id })',
-            '    await ctx.telegram.setManagedBotAccessSettings({ user_id: update.bot.id, access_settings: { ...settings, allow_bot_to_bot_messages: true } })',
-            '    void creator',
-            '})',
-            'if (anyCtx.has("guest_message")) {',
-            '    const narrowed: Message = anyCtx.guestMessage',
-            '    void narrowed',
-            '}',
-            'type Exact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false',
-            '// ctx.chat is typed from what the runtime actually derives',
-            'const guestChat: Exact<Context<Update.GuestQueryUpdate>["chat"], undefined> = true',
-            'const stoppedChat: Exact<Context<Update.StoppedMessageGenerationUpdate>["chat"], Chat> = true',
-            'const subscriptionFrom: Exact<Context<Update.BotSubscriptionUpdate>["from"], User> = true',
-            'const managedFrom: Exact<Context<Update.ManagedBotUpdate>["from"], User> = true',
-            'const guestFrom: Exact<Context<Update.GuestQueryUpdate>["from"], undefined> = true',
-            'const maybeGuest: Message | undefined = anyCtx.guestMessage',
-            'const maybeSubscription: BotSubscriptionUpdated | undefined = anyCtx.subscription',
-            '',
-            '// allowed_updates accept the new update types',
-            'void bot.launch({ allowedUpdates: ["guest_message", "subscription", "stopped_message_generation", "managed_bot"] })',
-            'void telegram.getUpdates(0, 100, 0, ["guest_message", "subscription"])',
-            '',
-            '// communities on chat info and service messages',
-            'async function communities() {',
-            '    const info: ChatFullInfo = await telegram.getChat(1)',
-            '    const community: Community | undefined = "community" in info ? info.community : undefined',
-            '    bot.on(message("community_chat_added"), (ctx) => {',
-            '        const added: Community = ctx.message.community_chat_added.community',
-            '        void added',
-            '    })',
-            '    void community',
-            '}',
-            '',
-            'const extra: Convenience.ExtraAnswerGuestQuery = { parse_mode: "HTML" }',
-            'void telegram.answerGuestQuery({ guest_query_id: "q", text: "hi", ...extra })',
-            '',
-            '// @ts-expect-error the update is called "subscription" in Bot API 10.3',
-            'bot.on("bot_subscription", () => {})',
-            '// @ts-expect-error guest_query_id is filled in by the Context helper',
-            'void anyCtx.answerGuestQuery("hi", { guest_query_id: "other" })',
-            '// @ts-expect-error access_settings is required',
+            'declare const bot: Telegraf',
+            "const result: T.InlineQueryResult = { type: 'article', id: 'a', title: 'Answer', input_message_content: { message_text: 'hi' } }",
+            "bot.on('guest_message', async ctx => { const sent: T.SentGuestMessage = await ctx.answerGuestQuery(result); void sent })",
+            "bot.on('subscription', ctx => { const user: T.User = ctx.from; const value: T.BotSubscriptionUpdated = ctx.subscription; void [user, value] })",
+            "bot.on('stopped_message_generation', ctx => { const value: T.MessageGenerationStopped = ctx.stoppedMessageGeneration; void ctx.sendRichMessageDraft(value.draft_id, { markdown: 'stopped' }) })",
+            "bot.on('managed_bot', async ctx => { const user: T.User = ctx.from; await ctx.telegram.setManagedBotAccessSettings({ user_id: ctx.managedBot.bot.id, is_access_restricted: true, added_user_ids: [user.id] }) })",
+            "bot.on('purchased_paid_media', ctx => { const value: T.PaidMediaPurchased = ctx.purchasedPaidMedia; void value })",
+            "void bot.launch({ allowedUpdates: ['guest_message', 'subscription', 'stopped_message_generation', 'managed_bot', 'purchased_paid_media'] })",
+            '// @ts-expect-error guest query helper does not accept top-level text',
+            "void ctx.answerGuestQuery('hello')",
+            '// @ts-expect-error access restriction flag is required',
             'void telegram.setManagedBotAccessSettings({ user_id: 1 })',
-            '// @ts-expect-error unknown access setting',
-            'void telegram.setManagedBotAccessSettings({ user_id: 1, access_settings: { can_do_anything: true } })',
-            '// @ts-expect-error answerGuestQuery requires text',
-            'void telegram.answerGuestQuery({ guest_query_id: "q" })',
-            '// @ts-expect-error guest messages do not provide a chat on Context',
-            'bot.on("guest_message", (ctx) => ctx.chat.id)',
-            '',
-            'void [communities, maybeGuest, maybeSubscription, guestChat, stoppedChat, subscriptionFrom, managedFrom, guestFrom]',
+            '// @ts-expect-error limit is required',
+            'void telegram.getUserPersonalChatMessages({ user_id: 1 })',
         ].join('\n')
     )
     t.pass()
@@ -3332,20 +3070,20 @@ test('Telegram.sendLivePhoto passes arguments through and formats captions', asy
     const plain = {
         chat_id: 42,
         photo: 'photo-id',
-        video: clip,
+        live_photo: clip,
         caption: 'plain',
         parse_mode: 'HTML',
         show_caption_above_media: true,
         ephemeral_message_parameters: ephemeralParams,
     }
-    const noCaption = { chat_id: '@channel', photo: clip, video: clip }
+    const noCaption = { chat_id: '@channel', photo: clip, live_photo: clip }
 
     t.is(await telegram.sendLivePhoto(plain), sent)
     await telegram.sendLivePhoto(noCaption)
     await telegram.sendLivePhoto({
         chat_id: 42,
         photo: 'photo-id',
-        video: clip,
+        live_photo: clip,
         caption: bold('formatted'),
         parse_mode: 'HTML',
     })
@@ -3358,7 +3096,7 @@ test('Telegram.sendLivePhoto passes arguments through and formats captions', asy
             {
                 chat_id: 42,
                 photo: 'photo-id',
-                video: clip,
+                live_photo: clip,
                 caption: 'formatted',
                 caption_entities: boldEntities(9),
                 // entities from FmtString win over a parse_mode passed alongside
@@ -3369,102 +3107,71 @@ test('Telegram.sendLivePhoto passes arguments through and formats captions', asy
     // arguments without a FmtString caption are forwarded as-is
     t.is(calls[0][1], plain)
     t.is(calls[1][1], noCaption)
-    t.is(calls[2][1].video, clip)
+    t.is(calls[2][1].live_photo, clip)
 })
 
 test('live photo and voice note uploads are sent as multipart attachments', async (t) => {
     const { bold } = require('../format')
-
-    const live = await captureBotApiRequest((telegram) =>
-        telegram.sendLivePhoto({
+    const photo = Input.fromBuffer(Buffer.from('still-bytes'), 'still.jpg')
+    const video = Input.fromBuffer(Buffer.from('motion-bytes'), 'clip.mp4')
+    const live = await captureBotApiRequest((tg) =>
+        tg.sendLivePhoto({
             chat_id: 42,
-            photo: Input.fromBuffer(Buffer.from('still-bytes'), 'still.jpg'),
-            video: clipFile(),
+            photo,
+            live_photo: video,
             caption: bold('live'),
         })
     )
-    t.true(live.result)
-    t.is(live.url, '/bot123:abc/sendLivePhoto')
     t.regex(live.headers['content-type'], /^multipart\/form-data/)
-    t.is(getMultipartField(live.body, 'chat_id'), '42')
-    t.is(getMultipartField(live.body, 'caption'), 'live')
+    t.true(live.body.includes('name="photo"; filename="still.jpg"'))
+    t.true(live.body.includes('name="live_photo"; filename="clip.mp4"'))
     t.deepEqual(
         JSON.parse(getMultipartField(live.body, 'caption_entities')),
         boldEntities(4)
     )
-    for (const [field, filename, bytes] of [
-        ['photo', 'still.jpg', 'still-bytes'],
-        ['video', 'clip.mp4', 'clip-bytes'],
-    ]) {
-        t.true(
-            live.body.includes(`name="${field}"; filename="${filename}"`),
-            field
-        )
-        t.true(live.body.includes(bytes), field)
-    }
-
-    const paid = await captureBotApiRequest((telegram) =>
-        telegram.sendPaidMedia(
-            42,
-            [
-                {
-                    type: 'live_photo',
-                    media: Input.fromBuffer(
-                        Buffer.from('paid-still'),
-                        'paid.jpg'
-                    ),
-                    video: Input.fromBuffer(
-                        Buffer.from('paid-motion'),
-                        'paid.mp4'
-                    ),
-                },
-                { type: 'photo', media: 'photo-id' },
-            ],
-            25
-        )
+    const media = { type: 'live_photo', media: video, photo }
+    const paid = await captureBotApiRequest((tg) =>
+        tg.sendPaidMedia(42, [media], 25)
     )
-    t.is(paid.url, '/bot123:abc/sendPaidMedia')
-    const paidMedia = JSON.parse(getMultipartField(paid.body, 'media'))
-    t.is(paidMedia.length, 2)
-    t.is(paidMedia[0].type, 'live_photo')
-    const stillId = /^attach:\/\/([0-9a-f]+)$/.exec(paidMedia[0].media)
-    const motionId = /^attach:\/\/([0-9a-f]+)$/.exec(paidMedia[0].video)
-    t.truthy(stillId)
-    t.truthy(motionId)
-    t.not(stillId[1], motionId[1])
-    t.true(paid.body.includes(`name="${stillId[1]}"; filename="paid.jpg"`))
-    t.true(paid.body.includes(`name="${motionId[1]}"; filename="paid.mp4"`))
-    t.deepEqual(paidMedia[1], { type: 'photo', media: 'photo-id' })
-    t.is(getMultipartField(paid.body, 'star_count'), '25')
-
-    const voice = await captureBotApiRequest((telegram) =>
-        telegram.editMessageMedia(42, 12, undefined, {
-            type: 'voice_note',
-            media: Input.fromBuffer(Buffer.from('ogg-bytes'), 'voice.ogg'),
-            caption: bold('voice'),
+    const paidMedia = JSON.parse(getMultipartField(paid.body, 'media'))[0]
+    t.is(paidMedia.type, 'live_photo')
+    t.regex(paidMedia.media, /^attach:\/\/[0-9a-f]+$/)
+    t.regex(paidMedia.photo, /^attach:\/\/[0-9a-f]+$/)
+    t.not(paidMedia.media, paidMedia.photo)
+    t.true(paid.body.includes('motion-bytes'))
+    t.true(paid.body.includes('still-bytes'))
+    const edited = await captureBotApiRequest((tg) =>
+        tg.editEphemeralMessageMedia(42, 99, 1, media)
+    )
+    t.is(getMultipartField(edited.body, 'receiver_user_id'), '99')
+    t.regex(
+        JSON.parse(getMultipartField(edited.body, 'media')).photo,
+        /^attach:\/\//
+    )
+    const voice = await captureBotApiRequest((tg) =>
+        tg.sendRichMessage({
+            chat_id: 42,
+            rich_message: {
+                markdown: '![voice](tg://voice_note?id=voice)',
+                media: [
+                    {
+                        id: 'voice',
+                        media: {
+                            type: 'voice_note',
+                            media: Input.fromBuffer(
+                                Buffer.from('voice-bytes'),
+                                'voice.ogg'
+                            ),
+                        },
+                    },
+                ],
+            },
         })
     )
-    t.is(voice.url, '/bot123:abc/editMessageMedia')
-    const voiceMedia = JSON.parse(getMultipartField(voice.body, 'media'))
-    t.is(voiceMedia.type, 'voice_note')
-    t.regex(voiceMedia.media, /^attach:\/\/[0-9a-f]+$/)
-    t.is(voiceMedia.caption, 'voice')
-    t.deepEqual(voiceMedia.caption_entities, boldEntities(5))
-    t.true(voice.body.includes('ogg-bytes'))
-
-    const ephemeral = await captureBotApiRequest((telegram) =>
-        telegram.editEphemeralMessageMedia(42, 'eph-1', {
-            type: 'live_photo',
-            media: 'photo-id',
-            video: clipFile(),
-        })
-    )
-    const ephemeralMedia = JSON.parse(
-        getMultipartField(ephemeral.body, 'media')
-    )
-    t.is(ephemeralMedia.media, 'photo-id')
-    t.regex(ephemeralMedia.video, /^attach:\/\/[0-9a-f]+$/)
-    t.true(ephemeral.body.includes('clip-bytes'))
+    const rich = JSON.parse(getMultipartField(voice.body, 'rich_message'))
+    t.is(rich.media[0].media.type, 'voice_note')
+    t.regex(rich.media[0].media.media, /^attach:\/\//)
+    t.true(voice.body.includes('voice-bytes'))
 })
 
 test('Context live photo helpers inherit chat, thread and business connection', async (t) => {
@@ -3522,7 +3229,7 @@ test('Context live photo helpers inherit chat, thread and business connection', 
             [
                 [
                     'sendLivePhoto',
-                    { ...defaults, photo: 'photo-id', video: clip },
+                    { ...defaults, photo: 'photo-id', live_photo: clip },
                 ],
                 [
                     'sendLivePhoto',
@@ -3530,7 +3237,7 @@ test('Context live photo helpers inherit chat, thread and business connection', 
                         ...defaults,
                         protect_content: true,
                         photo: 'photo-id',
-                        video: clip,
+                        live_photo: clip,
                     },
                 ],
             ],
@@ -3553,7 +3260,7 @@ test('Context live photo extras override defaults but not the files', async (t) 
         ephemeral_message_parameters: ephemeralParams,
         // not allowed by the types; positional files must still win for JS callers
         photo: 'ignored-photo',
-        video: 'ignored-video',
+        live_photo: 'ignored-video',
     })
 
     t.deepEqual(calls, [
@@ -3569,7 +3276,7 @@ test('Context live photo extras override defaults but not the files', async (t) 
                 reply_markup: inlineMarkup,
                 ephemeral_message_parameters: ephemeralParams,
                 photo: 'photo-id',
-                video: clip,
+                live_photo: clip,
             },
         ],
     ])
@@ -3625,7 +3332,7 @@ test('useNewReplies makes replyWithLivePhoto reply to the incoming message', asy
                 business_connection_id: undefined,
                 reply_parameters: { message_id: 3, quote: 'question' },
                 photo: 'photo-id',
-                video: clip,
+                live_photo: clip,
             },
         ],
         [
@@ -3635,7 +3342,7 @@ test('useNewReplies makes replyWithLivePhoto reply to the incoming message', asy
                 message_thread_id: undefined,
                 business_connection_id: undefined,
                 photo: 'photo-id',
-                video: clip,
+                live_photo: clip,
             },
         ],
     ])
@@ -3646,7 +3353,7 @@ test('Telegram reaction removal and join request wrappers pass arguments through
         deleteMessageReaction: true,
         deleteAllMessageReactions: true,
         answerChatJoinRequestQuery: true,
-        sendChatJoinRequestWebApp: { inline_message_id: 'inline-1' },
+        sendChatJoinRequestWebApp: true,
     }
     const calls = []
     const telegram = new Telegram('token')
@@ -3658,16 +3365,16 @@ test('Telegram reaction removal and join request wrappers pass arguments through
         deleteMessageReaction: {
             chat_id: 42,
             message_id: 7,
-            reaction: {
-                type: 'custom_emoji',
-                custom_emoji_id: '5368324170671202286',
-            },
+            user_id: 99,
         },
-        deleteAllMessageReactions: { chat_id: '@channel', message_id: 7 },
-        answerChatJoinRequestQuery: { query_id: 'jrq-1', approve: true },
+        deleteAllMessageReactions: { chat_id: '@channel', user_id: 99 },
+        answerChatJoinRequestQuery: {
+            chat_join_request_query_id: 'jrq-1',
+            result: 'approve',
+        },
         sendChatJoinRequestWebApp: {
-            query_id: 'jrq-1',
-            web_app: { url: 'https://example.test/review' },
+            chat_join_request_query_id: 'jrq-1',
+            web_app_url: 'https://example.test/review',
         },
     }
 
@@ -3680,142 +3387,79 @@ test('Telegram reaction removal and join request wrappers pass arguments through
     }
 })
 
-test('Context.deleteMessageReaction converts reactions like react does', async (t) => {
+test('Context.deleteMessageReaction forwards user and chat actors', async (t) => {
     const { telegram, calls } = recordingTelegram()
     const ctx = new Context(plainMessageUpdate, telegram, botInfo)
-    const paid = { type: 'paid' }
-    const cases = [
-        ['👍', { type: 'emoji', emoji: '👍' }],
-        [
-            '5368324170671202286',
-            { type: 'custom_emoji', custom_emoji_id: '5368324170671202286' },
-        ],
-        [
-            { type: 'emoji', emoji: '🔥' },
-            { type: 'emoji', emoji: '🔥' },
-        ],
-        [paid, paid],
-    ]
-
-    for (const [input] of cases) {
-        await ctx.deleteMessageReaction(input)
-    }
-    await ctx.react(cases.map(([input]) => input))
-
+    await ctx.deleteMessageReaction({ user_id: 99 })
+    await ctx.deleteMessageReaction({ actor_chat_id: -100 })
     t.deepEqual(calls, [
-        ...cases.map(([, reaction]) => [
-            'deleteMessageReaction',
-            { chat_id: 42, message_id: 13, reaction },
-        ]),
+        ['deleteMessageReaction', { chat_id: 42, message_id: 13, user_id: 99 }],
         [
-            'setMessageReaction',
-            {
-                chat_id: 42,
-                message_id: 13,
-                reaction: cases.map(([, reaction]) => reaction),
-                is_big: undefined,
-            },
+            'deleteMessageReaction',
+            { chat_id: 42, message_id: 13, actor_chat_id: -100 },
         ],
     ])
-    // ReactionType objects are forwarded as-is
-    t.is(calls[3][1].reaction, paid)
 })
 
-test('Context reaction removal targets the current or given message', async (t) => {
+test('Context reaction removal targets a message or the whole chat', async (t) => {
     const { telegram, calls } = recordingTelegram()
-    const fromReaction = new Context(reactionUpdate, telegram, botInfo)
-    const fromCallback = new Context(
+    const reaction = new Context(reactionUpdate, telegram, botInfo)
+    const callback = new Context(
         callbackUpdate(ephemeralMessage),
         telegram,
         botInfo
     )
-    const fromJoinRequest = new Context(
-        chatJoinRequestUpdate,
-        telegram,
-        botInfo
-    )
-
-    await fromReaction.deleteMessageReaction('👍')
-    await fromReaction.deleteAllMessageReactions()
-    await fromCallback.deleteAllMessageReactions()
-    await fromCallback.deleteMessageReaction('🔥', 99)
-    await fromCallback.deleteAllMessageReactions(98)
-    // updates with a chat but no message work with an explicit message id
-    await fromJoinRequest.deleteAllMessageReactions(97)
-
+    const join = new Context(chatJoinRequestUpdate, telegram, botInfo)
+    await reaction.deleteMessageReaction({ user_id: 99 })
+    await callback.deleteMessageReaction({ actor_chat_id: -100 }, 98)
+    await callback.deleteAllMessageReactions({ user_id: 99 })
+    await join.deleteAllMessageReactions({ actor_chat_id: -200 })
     t.deepEqual(calls, [
+        ['deleteMessageReaction', { chat_id: 42, message_id: 7, user_id: 99 }],
         [
             'deleteMessageReaction',
-            {
-                chat_id: 42,
-                message_id: 7,
-                reaction: { type: 'emoji', emoji: '👍' },
-            },
+            { chat_id: 42, message_id: 98, actor_chat_id: -100 },
         ],
-        ['deleteAllMessageReactions', { chat_id: 42, message_id: 7 }],
-        ['deleteAllMessageReactions', { chat_id: 42, message_id: 12 }],
-        [
-            'deleteMessageReaction',
-            {
-                chat_id: 42,
-                message_id: 99,
-                reaction: { type: 'emoji', emoji: '🔥' },
-            },
-        ],
-        ['deleteAllMessageReactions', { chat_id: 42, message_id: 98 }],
-        ['deleteAllMessageReactions', { chat_id: -100, message_id: 97 }],
+        ['deleteAllMessageReactions', { chat_id: 42, user_id: 99 }],
+        ['deleteAllMessageReactions', { chat_id: -100, actor_chat_id: -200 }],
     ])
 })
 
-test('Context reaction removal throws without a chat or message', (t) => {
+test('Context reaction removal rejects missing targets without sending', (t) => {
     const { telegram, calls } = recordingTelegram()
     const noChat = new Context(inlineQueryUpdate, telegram, botInfo)
     const noMessage = new Context(chatJoinRequestUpdate, telegram, botInfo)
-
-    for (const [ctx, updateType] of [
-        [noChat, 'inline_query'],
-        [noMessage, 'chat_join_request'],
-    ]) {
-        t.throws(() => ctx.deleteMessageReaction('👍'), {
-            instanceOf: TypeError,
-            message: `Telegraf: "deleteMessageReaction" isn't available for "${updateType}"`,
-        })
-        t.throws(() => ctx.deleteAllMessageReactions(), {
-            instanceOf: TypeError,
-            message: `Telegraf: "deleteAllMessageReactions" isn't available for "${updateType}"`,
-        })
-    }
-    // an explicit message id cannot stand in for a missing chat
-    t.throws(() => noChat.deleteAllMessageReactions(5), {
+    t.throws(() => noChat.deleteMessageReaction({ user_id: 99 }, 5), {
         instanceOf: TypeError,
-        message: `Telegraf: "deleteAllMessageReactions" isn't available for "inline_query"`,
     })
-    t.throws(() => noChat.deleteMessageReaction('👍', 5), {
+    t.throws(() => noChat.deleteAllMessageReactions({ user_id: 99 }), {
         instanceOf: TypeError,
-        message: `Telegraf: "deleteMessageReaction" isn't available for "inline_query"`,
+    })
+    t.throws(() => noMessage.deleteMessageReaction({ user_id: 99 }), {
+        instanceOf: TypeError,
     })
     t.deepEqual(calls, [])
 })
 
 test('Context join request query helpers use the query of the update', async (t) => {
-    const { telegram, calls } = recordingTelegram({
-        inline_message_id: 'inline-1',
-    })
+    const { telegram, calls } = recordingTelegram()
     const ctx = new Context(joinRequestQueryUpdate, telegram, botInfo)
-    const webApp = { url: 'https://example.test/review' }
-
-    t.deepEqual(await ctx.sendChatJoinRequestWebApp(webApp), {
-        inline_message_id: 'inline-1',
-    })
-    await ctx.answerChatJoinRequestQuery(true)
-    await ctx.answerChatJoinRequestQuery(false)
-
+    t.true(await ctx.sendChatJoinRequestWebApp('https://example.test/review'))
+    for (const result of ['approve', 'decline', 'queue'])
+        t.true(await ctx.answerChatJoinRequestQuery(result))
     t.deepEqual(calls, [
-        ['sendChatJoinRequestWebApp', { query_id: 'jrq-1', web_app: webApp }],
-        ['answerChatJoinRequestQuery', { query_id: 'jrq-1', approve: true }],
-        ['answerChatJoinRequestQuery', { query_id: 'jrq-1', approve: false }],
+        [
+            'sendChatJoinRequestWebApp',
+            {
+                chat_join_request_query_id: 'jrq-1',
+                web_app_url: 'https://example.test/review',
+            },
+        ],
+        ...['approve', 'decline', 'queue'].map((result) => [
+            'answerChatJoinRequestQuery',
+            { chat_join_request_query_id: 'jrq-1', result },
+        ]),
     ])
-    t.is(calls[0][1].web_app, webApp)
 })
 
 test('Context join request query helpers throw without a query', (t) => {
@@ -3829,62 +3473,46 @@ test('Context join request query helpers throw without a query', (t) => {
 
     for (const [updateType, update] of cases) {
         const ctx = new Context(update, telegram, botInfo)
-        t.throws(() => ctx.answerChatJoinRequestQuery(true), {
+        t.throws(() => ctx.answerChatJoinRequestQuery('approve'), {
             instanceOf: TypeError,
             message: `Telegraf: "answerChatJoinRequestQuery" isn't available for "${updateType}"`,
         })
-        t.throws(
-            () =>
-                ctx.sendChatJoinRequestWebApp({ url: 'https://example.test' }),
-            {
-                instanceOf: TypeError,
-                message: `Telegraf: "sendChatJoinRequestWebApp" isn't available for "${updateType}"`,
-            }
-        )
+        t.throws(() => ctx.sendChatJoinRequestWebApp('https://example.test'), {
+            instanceOf: TypeError,
+            message: `Telegraf: "sendChatJoinRequestWebApp" isn't available for "${updateType}"`,
+        })
     }
     t.deepEqual(calls, [])
 })
 
 test('reaction removal and join request queries serialize to the Bot API as JSON', async (t) => {
-    const { bot, requests } = offlineTelegraf({
-        sendChatJoinRequestWebApp: { inline_message_id: 'inline-1' },
-    })
-
+    const { bot, requests } = offlineTelegraf()
     bot.on('message_reaction', async (ctx) => {
-        await ctx.deleteMessageReaction('👍')
-        await ctx.deleteAllMessageReactions()
+        await ctx.deleteMessageReaction({ user_id: 99 })
+        await ctx.deleteAllMessageReactions({ actor_chat_id: -100 })
     })
     bot.on('chat_join_request', async (ctx) => {
-        t.deepEqual(
-            await ctx.sendChatJoinRequestWebApp({
-                url: 'https://example.test/review',
-            }),
-            { inline_message_id: 'inline-1' }
+        t.true(
+            await ctx.sendChatJoinRequestWebApp('https://example.test/review')
         )
-        await ctx.answerChatJoinRequestQuery(false)
+        await ctx.answerChatJoinRequestQuery('queue')
     })
     await bot.handleUpdate(reactionUpdate)
     await bot.handleUpdate(joinRequestQueryUpdate)
-
     t.deepEqual(requests, [
-        [
-            'deleteMessageReaction',
-            {
-                chat_id: 42,
-                message_id: 7,
-                reaction: { type: 'emoji', emoji: '👍' },
-            },
-        ],
-        ['deleteAllMessageReactions', { chat_id: 42, message_id: 7 }],
+        ['deleteMessageReaction', { chat_id: 42, message_id: 7, user_id: 99 }],
+        ['deleteAllMessageReactions', { chat_id: 42, actor_chat_id: -100 }],
         [
             'sendChatJoinRequestWebApp',
-            // the web app { url } stays JSON instead of being downloaded as a file
             {
-                query_id: 'jrq-1',
-                web_app: { url: 'https://example.test/review' },
+                chat_join_request_query_id: 'jrq-1',
+                web_app_url: 'https://example.test/review',
             },
         ],
-        ['answerChatJoinRequestQuery', { query_id: 'jrq-1', approve: false }],
+        [
+            'answerChatJoinRequestQuery',
+            { chat_join_request_query_id: 'jrq-1', result: 'queue' },
+        ],
     ])
 })
 
@@ -4016,174 +3644,45 @@ test('Context poll helpers accept option objects with media', async (t) => {
     ])
 })
 
-test('Bot API 10.3 live photo, poll media, reaction and join request fields are typed', (t) => {
-    const files = {
-        manage: readTypeFile('manage'),
-        message: readTypeFile('message'),
-        methods: readTypeFile('methods'),
-    }
-    const livePhoto = getMethodArgs(files.methods, 'sendLivePhoto')
-    const inputMediaLivePhoto = getInterface(
-        files.methods,
-        'InputMediaLivePhoto'
+test('Bot API 10.3 live photo, poll media, reaction and join request fields are typed', async (t) => {
+    await compileTypeScript(
+        'bot-api-10-3-live-photo-poll-media-reaction-and-join-request-fields-are-typed.ts',
+        [
+            `import { Context, Input, Telegraf, Telegram } from '${packageRoot}'`,
+            `import * as T from '${packageRoot}/types'`,
+            `import { bold } from '${packageRoot}/format'`,
+            'declare const ctx: Context',
+            'declare const telegram: Telegram',
+            'declare const bot: Telegraf',
+            "const file = Input.fromBuffer(Buffer.from('media'))",
+            "const live: T.InputMediaLivePhoto = { type: 'live_photo', media: file, photo: 'still-id' }",
+            "const paid: T.InputPaidMediaLivePhoto = { type: 'live_photo', media: 'motion-id', photo: file }",
+            "const option: T.InputPollOption = { text: 'answer', media: { type: 'link', url: 'https://example.test' } }",
+            "const send: T.Opts<'sendPoll'> = { chat_id: 1, question: 'Q', options: [option], media: live, explanation_media: { type: 'document', media: file } }",
+            "const group: T.Opts<'sendMediaGroup'> = { chat_id: 1, media: [live] }",
+            "const remove: T.Opts<'deleteAllMessageReactions'> = { chat_id: 1, actor_chat_id: -1 }",
+            "const web: T.Opts<'sendChatJoinRequestWebApp'> = { chat_join_request_query_id: 'q', web_app_url: 'https://example.test' }",
+            "const reply: T.Opts<'answerChatJoinRequestQuery'> = { chat_join_request_query_id: 'q', result: 'queue' }",
+            '// @ts-expect-error voice notes are not editable InputMedia',
+            "const voice: T.InputMedia = { type: 'voice_note', media: file }",
+            '// @ts-expect-error bulk reaction removal targets an actor, not a message',
+            "const wrong: T.Opts<'deleteAllMessageReactions'> = { chat_id: 1, message_id: 5 }",
+            '// @ts-expect-error links are option media, not poll-level media',
+            "const badPoll: T.Opts<'sendPoll'> = { chat_id: 1, question: 'Q', options: [], media: { type: 'link', url: 'https://example.test' } }",
+        ].join('\n')
     )
-    const inputPaidLivePhoto = getInterface(
-        files.methods,
-        'InputPaidMediaLivePhoto'
-    )
-    const voiceNote = getInterface(files.methods, 'InputMediaVoiceNote')
-    const poll = getMethodArgs(files.methods, 'sendPoll')
-    const pollOption = getInterface(files.message, 'InputPollOption')
-    const pollMedia = getTypeAlias(files.message, 'InputPollMedia')
-    const inputPollMediaNamespace = getBlock(
-        files.message,
-        /\bdeclare namespace InputPollMedia\b/
-    )
-    const deleteReaction = getMethodArgs(files.methods, 'deleteMessageReaction')
-    const deleteAllReactions = getMethodArgs(
-        files.methods,
-        'deleteAllMessageReactions'
-    )
-    const answerQuery = getMethodArgs(
-        files.methods,
-        'answerChatJoinRequestQuery'
-    )
-    const webApp = getMethodArgs(files.methods, 'sendChatJoinRequestWebApp')
-    const checks = {
-        'sendLivePhoto files':
-            hasField(livePhoto, 'photo', 'F | string') &&
-            hasField(livePhoto, 'video', 'F'),
-        'sendLivePhoto caption':
-            hasOptionalField(livePhoto, 'caption', 'string') &&
-            hasOptionalField(
-                livePhoto,
-                'caption_entities',
-                'MessageEntity[]'
-            ) &&
-            hasOptionalField(livePhoto, 'show_caption_above_media', 'true'),
-        'sendLivePhoto has no has_spoiler': !hasAnyField(
-            livePhoto,
-            'has_spoiler'
-        ),
-        'sendLivePhoto.ephemeral_message_parameters': hasOptionalField(
-            livePhoto,
-            'ephemeral_message_parameters',
-            'EphemeralMessageParameters'
-        ),
-        'sendLivePhoto returns LivePhotoMessage':
-            getMethodReturnType(files.methods, 'sendLivePhoto') ===
-            'Message.LivePhotoMessage & Message.BusinessSentMessage',
-        'Message.live_photo': hasField(
-            getInterface(files.message, 'LivePhotoMessage'),
-            'live_photo',
-            'LivePhoto'
-        ),
-        InputMediaLivePhoto:
-            hasField(inputMediaLivePhoto, 'type', '"live_photo"') &&
-            hasField(inputMediaLivePhoto, 'media', 'F | string') &&
-            hasField(inputMediaLivePhoto, 'video', 'F'),
-        InputPaidMediaLivePhoto:
-            hasField(inputPaidLivePhoto, 'type', '"live_photo"') &&
-            hasField(inputPaidLivePhoto, 'media', 'F | string') &&
-            hasField(inputPaidLivePhoto, 'video', 'F'),
-        InputMediaVoiceNote:
-            hasField(voiceNote, 'type', '"voice_note"') &&
-            hasField(voiceNote, 'media', 'F | string') &&
-            hasOptionalField(voiceNote, 'caption', 'string'),
-        'InputMedia includes live photos and voice notes':
-            hasTypeMember(
-                files.methods,
-                'InputMedia<F>',
-                'InputMediaLivePhoto<F>'
-            ) &&
-            hasTypeMember(
-                files.methods,
-                'InputMedia<F>',
-                'InputMediaVoiceNote<F>'
-            ),
-        'InputPaidMedia includes live photos': hasTypeMember(
-            files.methods,
-            'InputPaidMedia<F>',
-            'InputPaidMediaLivePhoto<F>'
-        ),
-        'sendPaidMedia.media': hasField(
-            getMethodArgs(files.methods, 'sendPaidMedia'),
-            'media',
-            'InputPaidMedia<F>[]'
-        ),
-        'sendMediaGroup excludes live photos and voice notes': hasField(
-            getMethodArgs(files.methods, 'sendMediaGroup'),
-            'media',
-            'ReadonlyArray<InputMediaAudio<F> | InputMediaDocument<F> | InputMediaPhoto<F> | InputMediaVideo<F>>'
-        ),
-        'sendPoll media':
-            hasOptionalField(poll, 'media', 'InputPollMedia') &&
-            hasOptionalField(poll, 'explanation_media', 'InputPollMedia') &&
-            hasField(poll, 'options', 'readonly InputPollOption[]'),
-        'sendPoll has no poll_media': !hasAnyField(poll, 'poll_media'),
-        InputPollOption:
-            hasField(pollOption, 'text', 'string') &&
-            hasOptionalField(pollOption, 'media', 'InputPollMedia'),
-        'InputPollMedia variants': [
-            'InputPollMedia.PhotoMedia',
-            'InputPollMedia.VideoMedia',
-            'InputPollMedia.StickerMedia',
-            'InputPollMedia.LocationMedia',
-            'InputPollMedia.VenueMedia',
-            'InputPollMedia.LinkMedia',
-        ].every((member) => pollMedia.includes(member)),
-        'InputPollMedia files are referenced, not uploaded': [
-            'PhotoMedia',
-            'VideoMedia',
-            'StickerMedia',
-        ].every((name) =>
-            hasField(
-                // the incoming PollMedia namespace declares interfaces with the same names first
-                getInterface(inputPollMediaNamespace, name),
-                'media',
-                'string'
-            )
-        ),
-        deleteMessageReaction:
-            hasField(deleteReaction, 'chat_id', 'number | string') &&
-            hasField(deleteReaction, 'message_id', 'number') &&
-            hasField(deleteReaction, 'reaction', 'ReactionType') &&
-            getMethodReturnType(files.methods, 'deleteMessageReaction') ===
-                'true',
-        deleteAllMessageReactions:
-            hasField(deleteAllReactions, 'chat_id', 'number | string') &&
-            hasField(deleteAllReactions, 'message_id', 'number') &&
-            getMethodReturnType(files.methods, 'deleteAllMessageReactions') ===
-                'true',
-        'ChatJoinRequest.query_id': hasOptionalField(
-            getInterface(files.manage, 'ChatJoinRequest'),
-            'query_id',
-            'string'
-        ),
-        answerChatJoinRequestQuery:
-            hasField(answerQuery, 'query_id', 'string') &&
-            hasField(answerQuery, 'approve', 'boolean') &&
-            getMethodReturnType(files.methods, 'answerChatJoinRequestQuery') ===
-                'true',
-        sendChatJoinRequestWebApp:
-            hasField(webApp, 'query_id', 'string') &&
-            hasField(webApp, 'web_app', 'WebAppInfo') &&
-            getMethodReturnType(files.methods, 'sendChatJoinRequestWebApp') ===
-                'SentWebAppMessage',
-    }
-    const missing = Object.entries(checks)
-        .filter(([, ok]) => !ok)
-        .map(([name]) => name)
-    t.deepEqual(missing, [])
+    t.pass()
 })
 
 // Context helpers for the Bot API 10.3 chat management methods, keyed by the method they call
 const contextChatManagementCalls = {
-    answerChatJoinRequestQuery: (ctx) => ctx.answerChatJoinRequestQuery(true),
-    deleteAllMessageReactions: (ctx) => ctx.deleteAllMessageReactions(),
-    deleteMessageReaction: (ctx) => ctx.deleteMessageReaction('👍'),
+    answerChatJoinRequestQuery: (ctx) =>
+        ctx.answerChatJoinRequestQuery('approve'),
+    deleteAllMessageReactions: (ctx) =>
+        ctx.deleteAllMessageReactions({ user_id: 99 }),
+    deleteMessageReaction: (ctx) => ctx.deleteMessageReaction({ user_id: 99 }),
     sendChatJoinRequestWebApp: (ctx) =>
-        ctx.sendChatJoinRequestWebApp({ url: 'https://example.test' }),
+        ctx.sendChatJoinRequestWebApp('https://example.test'),
     sendLivePhoto: (ctx) => ctx.replyWithLivePhoto('photo-id', clipFile()),
 }
 
@@ -4210,8 +3709,8 @@ test('Bot API 10.3 chat management methods are wrapped and reachable from Contex
 
     // every query_id-based method of the types reads it from the join request update
     t.deepEqual(
-        readMethodsAcceptingField('query_id').filter((method) =>
-            method.includes('ChatJoinRequest')
+        readMethodsAcceptingField('chat_join_request_query_id').filter(
+            (method) => method.includes('ChatJoinRequest')
         ),
         ['answerChatJoinRequestQuery', 'sendChatJoinRequestWebApp']
     )
@@ -4221,80 +3720,36 @@ test('Bot API 10.3 chat management methods are wrapped and reachable from Contex
 
 test('live photo, poll media, reaction and join request APIs are typed', async (t) => {
     await compileTypeScript(
-        'chat-management-types.ts',
+        'live-photo-poll-media-reaction-and-join-request-apis-are-typed.ts',
         [
             `import { Context, Input, Telegraf, Telegram } from '${packageRoot}'`,
-            `import { useNewReplies } from '${packageRoot}/future'`,
+            `import * as T from '${packageRoot}/types'`,
             `import { bold } from '${packageRoot}/format'`,
-            `import type { Convenience, InputMediaLivePhoto, InputMediaVoiceNote, InputPaidMediaLivePhoto, InputPollOption, Message, SentWebAppMessage } from '${packageRoot}/types'`,
-            '',
             'declare const ctx: Context',
             'declare const telegram: Telegram',
             'declare const bot: Telegraf',
-            'const clip = Input.fromBuffer(Buffer.from("clip"), "clip.mp4")',
-            '',
-            '// live photos',
-            'const live: Promise<Message.LivePhotoMessage & Message.BusinessSentMessage> = ctx.replyWithLivePhoto("photo-id", clip, { caption: bold("live"), ephemeral_message_parameters: { receiver_user_id: 1 } })',
-            'void ctx.sendLivePhoto(Input.fromLocalFile("still.jpg"), clip)',
-            'void telegram.sendLivePhoto({ chat_id: 1, photo: "photo-id", video: clip, caption: bold("formatted") })',
-            'const extra: Convenience.ExtraLivePhoto = { show_caption_above_media: true }',
-            'bot.use(useNewReplies())',
-            '// @ts-expect-error the video can only be uploaded as a new file',
-            'void ctx.replyWithLivePhoto("photo-id", "video-file-id")',
-            '// @ts-expect-error video is required',
-            'void telegram.sendLivePhoto({ chat_id: 1, photo: "photo-id" })',
-            '// @ts-expect-error sendLivePhoto has no has_spoiler (only live photo media does)',
-            'const spoiler: Convenience.ExtraLivePhoto = { has_spoiler: true }',
-            '',
-            '// reactions',
-            'void ctx.deleteMessageReaction("👍")',
-            'void ctx.deleteMessageReaction("5368324170671202286", 12)',
-            'void ctx.deleteMessageReaction({ type: "paid" })',
-            'const removedAll: Promise<true> = ctx.deleteAllMessageReactions()',
-            'void telegram.deleteMessageReaction({ chat_id: 1, message_id: 2, reaction: { type: "emoji", emoji: "👍" } })',
-            '// @ts-expect-error not a Telegram reaction emoji',
-            'void ctx.deleteMessageReaction("not-an-emoji")',
-            '// @ts-expect-error deleteMessageReaction removes a single reaction',
-            'void ctx.deleteMessageReaction(["👍", "🔥"])',
-            '',
-            '// join request queries',
-            'const answered: Promise<true> = ctx.answerChatJoinRequestQuery(true)',
-            'const webApp: Promise<SentWebAppMessage> = ctx.sendChatJoinRequestWebApp({ url: "https://example.test/review" })',
-            '// @ts-expect-error approve is required',
-            'void ctx.answerChatJoinRequestQuery()',
-            '',
-            '// polls with media',
-            'const option: InputPollOption = { text: "Cat", media: { type: "photo", media: "cat-file-id" } }',
-            'const options: Convenience.PollOption[] = ["Dog", option, { text: "Map", media: { type: "location", latitude: 1, longitude: 2 } }]',
-            'void ctx.replyWithPoll("Which?", options, { media: { type: "link", url: "https://example.test" } })',
-            'void ctx.sendQuiz("Q?", ["a", "b"], { correct_option_ids: [0], explanation_media: { type: "sticker", media: "sticker-id" } })',
-            'void ctx.sendPoll("Which?", options)',
-            'void ctx.sendQuiz("Q?", [option, "Dog"], { correct_option_ids: [0] })',
-            'void ctx.replyWithQuiz("Q?", ["Dog", option])',
-            'void telegram.sendPoll(1, "Q?", ["a", { text: "b", text_entities: [] }])',
-            'void telegram.sendQuiz(1, "Q?", ["a", "b"])',
-            '// @ts-expect-error poll media is referenced by file_id or URL, not uploaded',
-            'void ctx.sendPoll("Q?", ["a", "b"], { media: { type: "photo", media: Input.fromBuffer(Buffer.from("x")) } })',
-            '// @ts-expect-error unknown poll media type',
-            'void ctx.sendPoll("Q?", [{ text: "a", media: { type: "audio", media: "x" } }, "b"])',
-            '// @ts-expect-error the field is media, not poll_media',
-            'void ctx.sendPoll("Q?", ["a", "b"], { poll_media: { type: "photo", media: "x" } })',
-            '',
-            '// live photos and voice notes where the Bot API accepts them',
-            'const paid: InputPaidMediaLivePhoto = { type: "live_photo", media: Input.fromBuffer(Buffer.from("s")), video: clip }',
-            'void telegram.sendPaidMedia(1, [paid, { type: "photo", media: "photo-id" }], 10)',
-            'const voice: InputMediaVoiceNote = { type: "voice_note", media: Input.fromBuffer(Buffer.from("ogg")) }',
-            'void ctx.editMessageMedia({ ...voice, caption: bold("voice") })',
-            'const livePhotoMedia: InputMediaLivePhoto = { type: "live_photo", media: "photo-id", video: clip }',
-            'void telegram.editEphemeralMessageMedia(1, "eph", livePhotoMedia)',
-            '// @ts-expect-error media groups accept only photos, videos, audios or documents',
-            'void ctx.replyWithMediaGroup([voice])',
-            '// @ts-expect-error media groups accept only photos, videos, audios or documents',
-            'void telegram.sendMediaGroup(1, [livePhotoMedia])',
-            '// @ts-expect-error paid media live photos need an uploaded video',
-            'void telegram.sendPaidMedia(1, [{ type: "live_photo", media: "x", video: "video-id" }], 1)',
-            '',
-            'void [live, extra, spoiler, removedAll, answered, webApp]',
+            "const file = Input.fromBuffer(Buffer.from('media'))",
+            "void ctx.sendLivePhoto('photo-id', 'video-id', { has_spoiler: true, caption: bold('hi') })",
+            'void telegram.sendLivePhoto({ chat_id: 1, photo: file, live_photo: file })',
+            'void ctx.deleteMessageReaction({ user_id: 99 })',
+            'void ctx.deleteMessageReaction({ actor_chat_id: -1 }, 5)',
+            'const removed: Promise<true> = ctx.deleteAllMessageReactions({ user_id: 99 })',
+            "const answer: Promise<true> = ctx.answerChatJoinRequestQuery('queue')",
+            "const web: Promise<true> = ctx.sendChatJoinRequestWebApp('https://example.test')",
+            "const option: T.InputPollOption = { text: 'A', media: { type: 'photo', media: file } }",
+            "void ctx.sendPoll('Q', [option, 'B'])",
+            "void ctx.sendQuiz('Q', [option], { correct_option_ids: [0] })",
+            "void ctx.sendMediaGroup([{ type: 'live_photo', media: file, photo: file }])",
+            "void telegram.sendPaidMedia(1, [{ type: 'live_photo', media: file, photo: file }], 1)",
+            "void telegram.editEphemeralMessageMedia(1, 99, 2, { type: 'live_photo', media: file, photo: file, caption: bold('live') })",
+            '// @ts-expect-error old video field is not part of sendLivePhoto',
+            'void telegram.sendLivePhoto({ chat_id: 1, photo: file, video: file })',
+            '// @ts-expect-error reaction deletion requires an actor object',
+            "void ctx.deleteMessageReaction('emoji')",
+            '// @ts-expect-error result must be approve, decline or queue',
+            'void ctx.answerChatJoinRequestQuery(true)',
+            '// @ts-expect-error Mini App URL is a string',
+            "void ctx.sendChatJoinRequestWebApp({ url: 'https://example.test' })",
         ].join('\n')
     )
     t.pass()
@@ -4356,7 +3811,7 @@ test('Bot API 9.4-9.6 changelog fields are typed', (t) => {
             files.markup,
             'PreparedKeyboardButton'
         ),
-        replyParameters: getInterface(files.message, 'ReplyParameters'),
+        replyParameters: getTypeAlias(files.message, 'ReplyParameters'),
         textQuote: getInterface(files.message, 'TextQuote'),
         updateManagedBot: getInterface(files.update, 'ManagedBotUpdate'),
         user: getInterface(files.manage, 'User'),

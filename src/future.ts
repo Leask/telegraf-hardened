@@ -167,14 +167,14 @@ const replyContext: ReplyContext = {
             rich_message: richMessage,
         })
     },
-    replyWithLivePhoto(this: Context, photo, video, extra) {
+    replyWithLivePhoto(this: Context, photo, livePhoto, extra) {
         this.assert(this.chat, 'replyWithLivePhoto')
         return this.telegram.sendLivePhoto({
             chat_id: this.chat.id,
             ...replyTarget(this),
             ...makeReply(this, extra),
             photo,
-            video,
+            live_photo: livePhoto,
         })
     },
     replyWithQuiz(this: Context, question, options, extra) {

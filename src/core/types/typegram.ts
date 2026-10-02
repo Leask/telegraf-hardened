@@ -52,6 +52,7 @@ export type InputPaidMediaLivePhoto =
 export type InputRichMessage = Typegram.InputRichMessage<InputFile>
 export type InputRichMessageMedia = Typegram.InputRichMessageMedia<InputFile>
 export type InputRichBlock = Typegram.InputRichBlock<InputFile>
+export type InputPollOption = Typegram.InputPollOption<InputFile>
 
 // tiny helper types
 export type ChatAction = Opts<'sendChatAction'>['action']

@@ -194,6 +194,13 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         >
     }
 
+    get purchasedPaidMedia() {
+        return this.update.purchased_paid_media as PropOr<
+            U,
+            'purchased_paid_media'
+        >
+    }
+
     /** Shorthand for any `message` object present in the current update. One of
      * `message`, `edited_message`, `channel_post`, `edited_channel_post` or
      * `callback_query.message`
@@ -242,7 +249,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
     }
 
     /** Shorthand for `ephemeral_message_id` of the message in the current update, if that message is ephemeral. */
-    get ephemeralMessageId(): string | undefined {
+    get ephemeralMessageId(): number | undefined {
         const msg = this.msg
         return msg?.has('ephemeral_message_id')
             ? msg.ephemeral_message_id
@@ -372,10 +379,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
      * Answers the guest query of the guest message in the current update.
      * @see https://core.telegram.org/bots/api#answerguestquery
      */
-    answerGuestQuery(
-        text: string | FmtString,
-        extra?: tt.ExtraAnswerGuestQuery
-    ) {
+    answerGuestQuery(result: tg.InlineQueryResult) {
         const guestMessage = this.guestMessage
         const guestQueryId =
             guestMessage && 'guest_query_id' in guestMessage
@@ -383,8 +387,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
                 : undefined
         this.assert(guestQueryId, 'answerGuestQuery')
         return this.telegram.answerGuestQuery({
-            ...extra,
-            ...FmtString.normalise(text),
+            result,
             guest_query_id: guestQueryId,
         })
     }
@@ -527,6 +530,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
      * @see https://core.telegram.org/bots/api#editephemeralmessagetext
      */
     editEphemeralMessageText(
+        receiverUserId: number,
         ...[text, extra]: tt.TextOrRichMessageEdit<
             tt.ExtraEditEphemeralMessageText & EphemeralMessageTarget
         >
@@ -537,6 +541,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(ephemeral_message_id, 'editEphemeralMessageText')
         return this.telegram.editEphemeralMessageText(
             this.chat.id,
+            receiverUserId,
             ephemeral_message_id,
             // the text/rich_message pairing was already enforced by this method's own signature
             ...([
@@ -551,6 +556,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
      * @see https://core.telegram.org/bots/api#editephemeralmessagecaption
      */
     editEphemeralMessageCaption(
+        receiverUserId: number,
         caption: string | FmtString | undefined,
         extra?: tt.ExtraEditEphemeralMessageCaption & EphemeralMessageTarget
     ) {
@@ -560,6 +566,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(ephemeral_message_id, 'editEphemeralMessageCaption')
         return this.telegram.editEphemeralMessageCaption(
             this.chat.id,
+            receiverUserId,
             ephemeral_message_id,
             caption,
             rest
@@ -571,6 +578,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
      * @see https://core.telegram.org/bots/api#editephemeralmessagemedia
      */
     editEphemeralMessageMedia(
+        receiverUserId: number,
         media: tt.WrapCaption<tg.InputMedia>,
         extra?: tt.ExtraEditEphemeralMessageMedia & EphemeralMessageTarget
     ) {
@@ -580,6 +588,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(ephemeral_message_id, 'editEphemeralMessageMedia')
         return this.telegram.editEphemeralMessageMedia(
             this.chat.id,
+            receiverUserId,
             ephemeral_message_id,
             media,
             rest
@@ -591,6 +600,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
      * @see https://core.telegram.org/bots/api#editephemeralmessagereplymarkup
      */
     editEphemeralMessageReplyMarkup(
+        receiverUserId: number,
         markup: tg.InlineKeyboardMarkup | undefined,
         extra?: EphemeralMessageTarget
     ) {
@@ -600,6 +610,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
         this.assert(ephemeralMessageId, 'editEphemeralMessageReplyMarkup')
         return this.telegram.editEphemeralMessageReplyMarkup(
             this.chat.id,
+            receiverUserId,
             ephemeralMessageId,
             markup
         )
@@ -609,12 +620,16 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
      * Deletes the ephemeral message in the current update, or the one given by `ephemeralMessageId`.
      * @see https://core.telegram.org/bots/api#deleteephemeralmessage
      */
-    deleteEphemeralMessage(ephemeralMessageId?: string) {
+    deleteEphemeralMessage(
+        receiverUserId: number,
+        ephemeralMessageId?: number
+    ) {
         ephemeralMessageId ??= this.ephemeralMessageId
         this.assert(this.chat, 'deleteEphemeralMessage')
         this.assert(ephemeralMessageId, 'deleteEphemeralMessage')
         return this.telegram.deleteEphemeralMessage(
             this.chat.id,
+            receiverUserId,
             ephemeralMessageId
         )
     }
@@ -902,12 +917,12 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
 
     /**
      * @param photo The still photo of the live photo
-     * @param video The short video clip that accompanies the photo; can only be uploaded as a new file
+     * @param livePhoto The live photo video, as a file_id or a new upload
      * @see https://core.telegram.org/bots/api#sendlivephoto
      */
     sendLivePhoto(
         photo: string | tg.InputFile,
-        video: tg.InputFile,
+        livePhoto: string | tg.InputFile,
         extra?: tt.ExtraLivePhoto
     ) {
         this.assert(this.chat, 'sendLivePhoto')
@@ -917,7 +932,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
             business_connection_id: getBizConnIdFromAnySource(this),
             ...extra,
             photo,
-            video,
+            live_photo: livePhoto,
         })
     }
 
@@ -926,10 +941,10 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
      */
     replyWithLivePhoto(
         photo: string | tg.InputFile,
-        video: tg.InputFile,
+        livePhoto: string | tg.InputFile,
         extra?: tt.ExtraLivePhoto
     ) {
-        return this.sendLivePhoto(photo, video, extra)
+        return this.sendLivePhoto(photo, livePhoto, extra)
     }
 
     /**
@@ -1701,32 +1716,34 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
     }
 
     /**
-     * Removes one of the bot's reactions from the current message, or from the message with `messageId`.
-     * @param reaction An emoji, a custom_emoji_id, or a ReactionType, as accepted by {@link Context.react}
+     * Removes a user's or chat's reaction from the current or specified message.
      * @see https://core.telegram.org/bots/api#deletemessagereaction
      */
-    deleteMessageReaction(reaction: ReactionInput, messageId?: number) {
+    deleteMessageReaction(
+        actor: Omit<tg.Opts<'deleteMessageReaction'>, 'chat_id' | 'message_id'>,
+        messageId?: number
+    ) {
         this.assert(this.chat, 'deleteMessageReaction')
         const message_id = messageId ?? this.msgId
         this.assert(message_id, 'deleteMessageReaction')
         return this.telegram.deleteMessageReaction({
             chat_id: this.chat.id,
             message_id,
-            reaction: toReactionType(reaction),
+            ...actor,
         })
     }
 
     /**
-     * Removes all reactions set by the bot from the current message, or from the message with `messageId`.
+     * Removes a user's or chat's recent reactions throughout the current chat.
      * @see https://core.telegram.org/bots/api#deleteallmessagereactions
      */
-    deleteAllMessageReactions(messageId?: number) {
+    deleteAllMessageReactions(
+        actor: Omit<tg.Opts<'deleteAllMessageReactions'>, 'chat_id'>
+    ) {
         this.assert(this.chat, 'deleteAllMessageReactions')
-        const message_id = messageId ?? this.msgId
-        this.assert(message_id, 'deleteAllMessageReactions')
         return this.telegram.deleteAllMessageReactions({
             chat_id: this.chat.id,
-            message_id,
+            ...actor,
         })
     }
 
@@ -1818,12 +1835,14 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
      * Answers the join request query of the `chat_join_request` update.
      * @see https://core.telegram.org/bots/api#answerchatjoinrequestquery
      */
-    answerChatJoinRequestQuery(approve: boolean) {
+    answerChatJoinRequestQuery(
+        result: tg.Opts<'answerChatJoinRequestQuery'>['result']
+    ) {
         const queryId = this.chatJoinRequest?.query_id
         this.assert(queryId, 'answerChatJoinRequestQuery')
         return this.telegram.answerChatJoinRequestQuery({
-            query_id: queryId,
-            approve,
+            chat_join_request_query_id: queryId,
+            result,
         })
     }
 
@@ -1831,12 +1850,12 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
      * Sends a Web App to review the join request query of the `chat_join_request` update.
      * @see https://core.telegram.org/bots/api#sendchatjoinrequestwebapp
      */
-    sendChatJoinRequestWebApp(webApp: tg.WebAppInfo) {
+    sendChatJoinRequestWebApp(webAppUrl: string) {
         const queryId = this.chatJoinRequest?.query_id
         this.assert(queryId, 'sendChatJoinRequestWebApp')
         return this.telegram.sendChatJoinRequestWebApp({
-            query_id: queryId,
-            web_app: webApp,
+            chat_join_request_query_id: queryId,
+            web_app_url: webAppUrl,
         })
     }
 
@@ -1900,7 +1919,7 @@ export default Context
 
 /** Overrides which ephemeral message a Context helper targets; defaults to {@link Context.ephemeralMessageId} */
 interface EphemeralMessageTarget {
-    ephemeral_message_id?: string
+    ephemeral_message_id?: number
 }
 
 type UpdateTypes<U extends Deunionize<tg.Update>> = Extract<

@@ -10,6 +10,7 @@ import {
     InputMediaDocument,
     InputMediaPhoto,
     InputMediaVideo,
+    InputMediaLivePhoto,
     InputPollOption,
     InputRichMessage,
 } from './core/types/typegram'
@@ -47,10 +48,6 @@ export type ExtraAnswerCbQuery = MakeExtra<
     'answerCallbackQuery',
     'text' | 'callback_query_id'
 >
-export type ExtraAnswerGuestQuery = MakeExtra<
-    'answerGuestQuery',
-    'guest_query_id' | 'text'
->
 export type ExtraAnswerInlineQuery = MakeExtra<
     'answerInlineQuery',
     'inline_query_id' | 'results'
@@ -87,15 +84,15 @@ export type ExtraEditChatInviteLink = MakeExtra<
 >
 export type ExtraEditEphemeralMessageCaption = MakeExtra<
     'editEphemeralMessageCaption',
-    'ephemeral_message_id' | 'caption'
+    'receiver_user_id' | 'ephemeral_message_id' | 'caption'
 >
 export type ExtraEditEphemeralMessageMedia = MakeExtra<
     'editEphemeralMessageMedia',
-    'ephemeral_message_id' | 'media'
+    'receiver_user_id' | 'ephemeral_message_id' | 'media'
 >
 export type ExtraEditEphemeralMessageText = MakeExtra<
     'editEphemeralMessageText',
-    'ephemeral_message_id' | 'text'
+    'receiver_user_id' | 'ephemeral_message_id' | 'text'
 >
 export type ExtraEditMessageCaption = MakeExtra<
     'editMessageCaption',
@@ -148,7 +145,7 @@ export type ExtraKickChatMember = ExtraBanChatMember
 export type ExtraLocation = MakeExtra<'sendLocation', 'latitude' | 'longitude'>
 export type ExtraMediaGroup = MakeExtra<'sendMediaGroup', 'media'>
 export type ExtraPhoto = MakeExtra<'sendPhoto', 'photo'>
-export type ExtraLivePhoto = MakeExtra<'sendLivePhoto', 'photo' | 'video'>
+export type ExtraLivePhoto = MakeExtra<'sendLivePhoto', 'photo' | 'live_photo'>
 /** A poll answer option: its text, or a full `InputPollOption` with formatting and media */
 export type PollOption = string | InputPollOption
 export type ExtraPoll = MakeExtra<'sendPoll', 'question' | 'options' | 'type'>
@@ -192,7 +189,7 @@ export type ExtraEditForumTopic = MakeExtra<
 >
 
 export type MediaGroup =
-    | readonly (InputMediaPhoto | InputMediaVideo)[]
+    | readonly (InputMediaPhoto | InputMediaVideo | InputMediaLivePhoto)[]
     | readonly InputMediaAudio[]
     | readonly InputMediaDocument[]
 
