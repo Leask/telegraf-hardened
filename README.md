@@ -430,7 +430,7 @@ Default `bot.handleError` always rethrows. You can overwrite it using `bot.catch
 
 ### Running the tests
 
-`npm ci --ignore-scripts` followed by `npm test` builds the package and runs the
+`npm ci` followed by `npm test` builds the package and runs the
 complete offline suite, including middleware, scenes, sessions, API contracts,
 network errors and polling. No bot token is required. `npm run test:api-sync`
 runs only the narrower Bot API contract suite; it is not a full regression run.

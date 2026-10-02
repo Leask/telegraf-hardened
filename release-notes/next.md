@@ -34,6 +34,13 @@ await bot.telegram.deleteEphemeralMessage(chatId, receiverUserId, ephemeralId)
 - Parse the README's JavaScript examples to catch syntax regressions.
 - Tests use offline fixtures and loopback HTTP servers. They do not establish live Telegram acceptance, permissions, or third-party framework compatibility.
 
+## Network and Test Infrastructure
+
+- Restore `npm test` to the complete AVA suite, not only the API synchronization tests. Run clean installs, tests, and lint on Node 18, 20, 22, 24, and 26.
+- Keep request cancellation active while reading response bodies, preserve timeout reasons, and retry transient polling failures. Stopping polling interrupts backoff promptly.
+- Normalize response read failures without losing HTTP errors. Bound and sanitize diagnostic causes without mutating native errors or leaking bot tokens.
+- These fixes are also available independently of 10.3 in [PR #31](https://github.com/telegraf-hardened/telegraf-hardened/pull/31).
+
 ## Release Prerequisites
 
 The corrected types are pending in [types PR #6](https://github.com/telegraf-hardened/types/pull/6) and [#7](https://github.com/telegraf-hardened/types/pull/7). Until they are published, this branch uses an immutable HTTPS Git dependency. Run `npm ci` with lifecycle scripts enabled to generate its declaration files; an SSH key is not needed.
