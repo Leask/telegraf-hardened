@@ -678,29 +678,37 @@ class ApiClient {
             options.apiRoot
         )
         config.signal = signal
-        const res = await fetchWithTimeout(
-            options.fetch,
-            apiUrl,
-            config,
-            options.requestTimeout
-        ).catch((error: unknown) => networkError(method, options, token, error))
-        if (res.status >= 500) {
-            const errorPayload = {
-                error_code: res.status,
-                description: res.statusText,
+        const request = withTimeout(config, options.requestTimeout)
+        try {
+            const res = await options
+                .fetch(apiUrl, request.config as globalThis.RequestInit)
+                .catch((error: unknown) =>
+                    networkError(method, options, token, error)
+                )
+            const httpError = () =>
+                new TelegramError(
+                    { error_code: res.status, description: res.statusText },
+                    { method, payload }
+                )
+            if (res.status >= 500) throw httpError()
+            let data: ApiResponse<ReturnType<Telegram[M]>>
+            try {
+                data = (await res.json()) as typeof data
+            } catch (error) {
+                if (res.status >= 400) throw httpError()
+                const reason = request.config.signal?.aborted
+                    ? request.config.signal.reason
+                    : error
+                return networkError(method, options, token, reason)
             }
-            throw new TelegramError(errorPayload, { method, payload })
+            if (!data.ok) {
+                debug('API call failed', data)
+                throw new TelegramError(data, { method, payload })
+            }
+            return data.result
+        } finally {
+            request.cleanup()
         }
-        const data = (await res
-            .json()
-            .catch((error: unknown) =>
-                networkError(method, options, token, error)
-            )) as ApiResponse<ReturnType<Telegram[M]>>
-        if (!data.ok) {
-            debug('API call failed', data)
-            throw new TelegramError(data, { method, payload })
-        }
-        return data.result
     }
 }
 

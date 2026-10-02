@@ -2,10 +2,66 @@
 
 const test = require('ava')
 const { createServer } = require('node:http')
-const { once } = require('node:events')
+const { once, getEventListeners } = require('node:events')
 const { inspect } = require('node:util')
 const { Telegram, TelegrafNetworkError, TelegramError } = require('../')
 const { Polling } = require('../lib/core/network/polling')
+
+for (const abort of [false, true]) {
+    test.serial(
+        `signal fallback covers body consumption (caller abort: ${abort})`,
+        async (t) => {
+            const any = Object.getOwnPropertyDescriptor(AbortSignal, 'any')
+            Object.defineProperty(AbortSignal, 'any', {
+                value: undefined,
+                configurable: true,
+            })
+            const controller = new AbortController()
+            const server = createServer((_req, res) => {
+                res.writeHead(200, { 'Content-Type': 'application/json' })
+                res.flushHeaders()
+                if (abort) setTimeout(() => controller.abort(), 20)
+            })
+            t.teardown(() => {
+                controller.abort()
+                server.closeAllConnections()
+                server.close()
+                if (any) Object.defineProperty(AbortSignal, 'any', any)
+                else delete AbortSignal.any
+            })
+            server.listen(0, '127.0.0.1')
+            await once(server, 'listening')
+            const telegram = new Telegram('123:secret', {
+                apiRoot: `http://127.0.0.1:${server.address().port}`,
+                requestTimeout: abort ? 2000 : 100,
+            })
+            const error = await t.throwsAsync(
+                telegram.callApi('getMe', {}, { signal: controller.signal })
+            )
+            t.true(error instanceof TelegrafNetworkError)
+            t.is(error.errorName, abort ? 'AbortError' : 'TimeoutError')
+            t.is(error.transient, !abort)
+            t.is(getEventListeners(controller.signal, 'abort').length, 0)
+        }
+    )
+}
+
+for (const status of [401, 409, 429]) {
+    test(`unreadable HTTP ${status} responses retain their status`, async (t) => {
+        const telegram = new Telegram('123:secret', {
+            fetch: async () => ({
+                status,
+                statusText: 'Rejected',
+                json: async () => {
+                    throw new Error('broken JSON')
+                },
+            }),
+        })
+        const error = await t.throwsAsync(telegram.getMe())
+        t.true(error instanceof TelegramError)
+        t.is(error.code, status)
+    })
+}
 
 test.serial(
     'timeout fallback preserves timeout and caller abort reasons',
