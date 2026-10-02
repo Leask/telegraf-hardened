@@ -2,11 +2,10 @@ import * as tg from '../types/typegram'
 import * as tt from '../../telegram-types'
 import ApiClient from './client'
 import d from 'debug'
-import { promisify } from 'util'
+import { setTimeout as wait } from 'timers/promises'
 import { TelegrafNetworkError, TelegramError } from './error'
 import type { Telegraf } from '../../telegraf'
 const debug = d('telegraf:polling')
-const wait = promisify(setTimeout)
 const DEFAULT_CONFLICT_RETRY_DELAY = 1_000
 const DEFAULT_MAX_CONFLICT_RETRY_DELAY = 60_000
 function always<T>(x: T) {
@@ -51,12 +50,7 @@ export class Polling {
                     code?: string | number
                 }
 
-                if (
-                    err instanceof TelegrafNetworkError &&
-                    err.errorName === 'AbortError'
-                ) {
-                    return
-                }
+                if (this.abortController.signal.aborted) return
 
                 if (
                     err instanceof TelegramError &&
@@ -81,7 +75,7 @@ export class Polling {
                         this.retryCount
                     )
 
-                    await wait(delay)
+                    await this.wait(delay)
                     continue
                 }
 
@@ -99,7 +93,7 @@ export class Polling {
                         retryAfter,
                         err
                     )
-                    await wait(retryAfter * 1000)
+                    await this.wait(retryAfter * 1000)
                     continue
                 }
                 if (
@@ -113,6 +107,15 @@ export class Polling {
                 throw err
             }
         } while (!this.abortController.signal.aborted)
+    }
+
+    private async wait(delay: number) {
+        const { signal } = this.abortController
+        try {
+            await wait(delay, undefined, { signal })
+        } catch (error) {
+            if (!signal.aborted) throw error
+        }
     }
 
     private async syncUpdateOffset() {

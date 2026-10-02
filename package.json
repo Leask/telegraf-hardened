@@ -70,7 +70,7 @@
     },
     "scripts": {
         "prepare": "npm run build",
-        "test": "ava test/api.js",
+        "test": "ava",
         "pretest:api-sync": "npm run build",
         "test:api-sync": "ava test/api.js",
         "build": "tsc && npm run expose",

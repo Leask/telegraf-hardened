@@ -405,6 +405,19 @@ createServer(tlsOptions, await bot.createWebhook({ domain: "example.com" })).lis
 
 ### Error handling
 
+Bot API fetch failures, including failures while reading the response body,
+reject with `TelegrafNetworkError`. It exposes the API method, request metadata,
+`code`, `errorName`, and a `transient` flag. Its `cause` is a sanitized diagnostic
+copy, not the original transport error. Diagnostic cause chains are bounded;
+bot tokens are redacted without modifying native or custom fetch errors.
+
+Long polling retries transient transport errors (including native fetch
+`TimeoutError`), HTTP 5xx and Telegram 429 responses. A caller abort is not a
+timeout: polling stops normally only when its own stop signal is set. An
+unexpected transport `AbortError` propagates instead of silently ending the
+polling loop. `bot.stop()` also interrupts retry backoff, including opt-in 409
+conflict retries, before the final update-offset synchronization.
+
 If middleware throws an error or times out, Telegraf calls `bot.handleError`. If it rethrows, update source closes, and then the error is printed to console and process terminates. If it does not rethrow, the error is swallowed.
 
 Default `bot.handleError` always rethrows. You can overwrite it using `bot.catch` if you need to.
@@ -414,6 +427,13 @@ Default `bot.handleError` always rethrows. You can overwrite it using `bot.catch
 ℹ️ In production, `systemd` or [`pm2`](https://www.npmjs.com/package/pm2) can restart your bot if it exits for any reason.
 
 ## Advanced topics
+
+### Running the tests
+
+`npm ci --ignore-scripts` followed by `npm test` builds the package and runs the
+complete offline suite, including middleware, scenes, sessions, API contracts,
+network errors and polling. No bot token is required. `npm run test:api-sync`
+runs only the narrower Bot API contract suite; it is not a full regression run.
 
 ### Working with files
 
