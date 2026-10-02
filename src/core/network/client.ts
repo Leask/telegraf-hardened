@@ -12,6 +12,7 @@ import { compactOptions } from '../helpers/compact'
 import MultipartStream from './multipart-stream'
 import TelegramError, { TelegrafNetworkError } from './error'
 import { URL } from 'url'
+import { types } from 'util'
 const debug = d('telegraf:client')
 const { isStream } = MultipartStream
 const REQUEST_TIMEOUT = 500_000 // ms
@@ -80,12 +81,14 @@ function withTimeout(config: RequestConfig, timeout: number) {
     }
 
     const controller = new AbortController()
-    const abort = () => controller.abort()
     const signal = config.signal as globalThis.AbortSignal
-    if (signal.aborted || timeoutSignal.aborted) controller.abort()
+    const abort = () => controller.abort(signal.reason)
+    const expire = () => controller.abort(timeoutSignal.reason)
+    if (signal.aborted) abort()
+    else if (timeoutSignal.aborted) expire()
     else {
         signal.addEventListener('abort', abort, { once: true })
-        timeoutSignal.addEventListener('abort', abort, { once: true })
+        timeoutSignal.addEventListener('abort', expire, { once: true })
     }
     return {
         config: {
@@ -94,7 +97,7 @@ function withTimeout(config: RequestConfig, timeout: number) {
         },
         cleanup: () => {
             signal.removeEventListener('abort', abort)
-            timeoutSignal.removeEventListener('abort', abort)
+            timeoutSignal.removeEventListener('abort', expire)
         },
     }
 }
@@ -414,11 +417,12 @@ const TRANSIENT_NETWORK_CODES = new Set([
 
 const MAX_CAUSE_DEPTH = 4
 
-function redactToken(value: string): string
-function redactToken<T>(value: T): T
-function redactToken(value: unknown) {
+function redactToken(value: string, token: string): string
+function redactToken<T>(value: T, token: string): T
+function redactToken(value: unknown, token: string) {
     if (typeof value !== 'string') return value
-    return value
+    const text = token ? value.split(token).join('[REDACTED]') : value
+    return text
         .replace(/\/(bot|user)(\d+):[^/\s]+(?=\/|$)/g, '/$1$2:[REDACTED]')
         .replace(/\b(\d{5,}):[A-Za-z0-9_-]{20,}\b/g, '$1:[REDACTED]')
 }
@@ -463,11 +467,15 @@ function errorCause(error: unknown) {
 
 function isTransientNetworkError(
     error: unknown,
-    seen = new WeakSet<object>()
+    seen = new WeakSet<object>(),
+    depth = 0
 ): boolean {
+    if (depth >= MAX_CAUSE_DEPTH) return false
     if (!error || typeof error !== 'object') return false
     if (seen.has(error)) return false
     seen.add(error)
+
+    if (errorName(error) === 'TimeoutError') return true
 
     const code = errorCode(error)
     if (typeof code === 'string' && TRANSIENT_NETWORK_CODES.has(code)) {
@@ -475,12 +483,16 @@ function isTransientNetworkError(
     }
 
     const cause = errorCause(error)
-    return isTransientNetworkError(cause, seen)
+    return isTransientNetworkError(cause, seen, depth + 1)
 }
 
-function sanitizeObject(value: object, seen: WeakSet<object>, depth: number) {
-    if (depth >= MAX_CAUSE_DEPTH) return '[Object]'
-    const clean: Record<string, unknown> = {}
+function sanitizeObject(
+    value: object,
+    token: string,
+    seen: WeakSet<object>,
+    depth: number
+) {
+    const clean: Record<string, unknown> = Object.create(null)
     let keys: string[]
     try {
         keys = Object.getOwnPropertyNames(value)
@@ -493,13 +505,13 @@ function sanitizeObject(value: object, seen: WeakSet<object>, depth: number) {
         try {
             desc = Object.getOwnPropertyDescriptor(value, key)
         } catch {
-            clean[key] = '[Uninspectable property]'
+            clean[redactToken(key, token)] = '[Uninspectable property]'
             continue
         }
         if (!desc) continue
-        clean[key] =
+        clean[redactToken(key, token)] =
             'value' in desc
-                ? sanitizeCause(desc.value, seen, depth + 1)
+                ? sanitizeCause(desc.value, token, seen, depth + 1)
                 : '[Getter]'
     }
     return clean
@@ -507,30 +519,40 @@ function sanitizeObject(value: object, seen: WeakSet<object>, depth: number) {
 
 function sanitizeCause(
     error: unknown,
+    token: string,
     seen = new WeakSet<object>(),
     depth = 0
 ): unknown {
-    if (typeof error === 'string') return redactToken(error)
+    if (typeof error === 'string') return redactToken(error, token)
+    if (typeof error === 'function') return '[Function]'
+    if (typeof error === 'symbol') return '[Symbol]'
     if (!error || typeof error !== 'object') return error
+    if (depth >= MAX_CAUSE_DEPTH) return '[Truncated]'
     if (seen.has(error)) return '[Circular]'
     seen.add(error)
-    if (!(error instanceof Error)) return sanitizeObject(error, seen, depth)
+    let isError: boolean
+    try {
+        isError = types.isNativeError(error) || error instanceof Error
+    } catch {
+        return '[Uninspectable object]'
+    }
+    if (!isError) return sanitizeObject(error, token, seen, depth)
 
     const cause = errorCause(error)
     const options =
         cause === undefined
             ? undefined
-            : { cause: sanitizeCause(cause, seen, depth + 1) }
+            : { cause: sanitizeCause(cause, token, seen, depth + 1) }
     const message = errorString(error, 'message') ?? errorName(error) ?? 'Error'
-    const safe = new Error(redactToken(message), options)
-    safe.name = errorString(error, 'name') ?? 'Error'
+    const safe = new Error(redactToken(message, token), options)
+    safe.name = redactToken(errorString(error, 'name') ?? 'Error', token)
     const stack = errorString(error, 'stack')
-    if (stack) safe.stack = redactToken(stack)
+    if (stack) safe.stack = redactToken(stack, token)
 
     const code = errorCode(error)
     if (code !== undefined) {
         Object.defineProperty(safe, 'code', {
-            value: code,
+            value: redactToken(code, token),
             writable: true,
             enumerable: true,
             configurable: true,
@@ -542,23 +564,24 @@ function sanitizeCause(
 function networkError<M extends keyof Telegram>(
     method: M,
     options: ApiClient.Options,
+    token: string,
     error: unknown
 ): never {
     const message =
         typeof error === 'string' ? error : errorString(error, 'message')
-    const detail = message ? `: ${redactToken(message)}` : ''
+    const detail = message ? `: ${redactToken(message, token)}` : ''
     throw new TelegrafNetworkError(
         `Network request failed for ${String(method)}${detail}`,
         {
             method: String(method),
-            apiRoot: options.apiRoot,
+            apiRoot: redactToken(options.apiRoot, token),
             apiMode: options.apiMode,
             testEnv: options.testEnv,
         },
         {
-            cause: sanitizeCause(error),
-            code: errorCode(error),
-            errorName: errorName(error),
+            cause: sanitizeCause(error, token),
+            code: redactToken(errorCode(error), token),
+            errorName: redactToken(errorName(error), token),
             transient: isTransientNetworkError(error),
         }
     )
@@ -660,7 +683,7 @@ class ApiClient {
             apiUrl,
             config,
             options.requestTimeout
-        ).catch((error: unknown) => networkError(method, options, error))
+        ).catch((error: unknown) => networkError(method, options, token, error))
         if (res.status >= 500) {
             const errorPayload = {
                 error_code: res.status,
@@ -668,7 +691,11 @@ class ApiClient {
             }
             throw new TelegramError(errorPayload, { method, payload })
         }
-        const data = (await res.json()) as ApiResponse<ReturnType<Telegram[M]>>
+        const data = (await res
+            .json()
+            .catch((error: unknown) =>
+                networkError(method, options, token, error)
+            )) as ApiResponse<ReturnType<Telegram[M]>>
         if (!data.ok) {
             debug('API call failed', data)
             throw new TelegramError(data, { method, payload })
