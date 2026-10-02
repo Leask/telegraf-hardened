@@ -95,7 +95,7 @@
     },
     "types": "./typings/index.d.ts",
     "dependencies": {
-        "@telegraf/types": "git+https://github.com/Leask/telegraf-hardened-types.git#eb45afaaa6fb4b9c1c72aa96b53da6628c2f7866",
+        "@telegraf/types": "git+https://github.com/Leask/telegraf-hardened-types.git#7cfd77e14014b831c311bfa331b2496d8a976404",
         "debug": "^4.4.3",
         "mri": "^1.2.0",
         "p-timeout": "^4.1.0",

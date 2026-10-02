@@ -686,7 +686,7 @@ export class Context<U extends Deunionize<tg.Update> = tg.Update> {
      */
     sendRichMessageDraft(
         draftId: number,
-        richMessage: tg.InputRichMessage,
+        richMessage: tg.InputRichMessageDraft,
         extra?: tt.ExtraRichMessageDraft
     ) {
         this.assert(this.chat, 'sendRichMessageDraft')

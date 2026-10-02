@@ -2050,8 +2050,8 @@ export class Telegram extends ApiClient {
     }
 
     /**
-     * Send a live photo: a still `photo` with the short `video` clip that accompanies it.
-     * The video can only be uploaded as a new file. `caption` may be a `FmtString`.
+     * Send a still `photo` with its accompanying `live_photo` video.
+     * Both fields accept file IDs or new uploads. `caption` may be a `FmtString`.
      * @see https://core.telegram.org/bots/api#sendlivephoto
      */
     sendLivePhoto(args: tt.WrapCaption<tg.Opts<'sendLivePhoto'>>) {
@@ -2059,7 +2059,7 @@ export class Telegram extends ApiClient {
     }
 
     /**
-     * Remove a specific reaction of the bot from a message.
+     * Remove a message reaction by the specified `user_id` or `actor_chat_id`.
      * @see https://core.telegram.org/bots/api#deletemessagereaction
      */
     deleteMessageReaction(args: tg.Opts<'deleteMessageReaction'>) {
@@ -2067,7 +2067,7 @@ export class Telegram extends ApiClient {
     }
 
     /**
-     * Remove all reactions set by the bot from a message.
+     * Remove recent reactions by `user_id` or `actor_chat_id` across the chat.
      * @see https://core.telegram.org/bots/api#deleteallmessagereactions
      */
     deleteAllMessageReactions(args: tg.Opts<'deleteAllMessageReactions'>) {

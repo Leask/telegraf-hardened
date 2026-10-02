@@ -50,8 +50,10 @@ export type InputPaidMedia = Typegram.InputPaidMedia<InputFile>
 export type InputPaidMediaLivePhoto =
     Typegram.InputPaidMediaLivePhoto<InputFile>
 export type InputRichMessage = Typegram.InputRichMessage<InputFile>
+export type InputRichMessageDraft = Typegram.InputRichMessageDraft<InputFile>
 export type InputRichMessageMedia = Typegram.InputRichMessageMedia<InputFile>
 export type InputRichBlock = Typegram.InputRichBlock<InputFile>
+export type InputRichBlockDraft = Typegram.InputRichBlockDraft<InputFile>
 export type InputPollOption = Typegram.InputPollOption<InputFile>
 
 // tiny helper types

@@ -4,7 +4,7 @@
 
 - Support the [Bot API 10.3 specification](https://core.telegram.org/bots/api), building on [the maintainer's API sync](https://github.com/telegraf-hardened/telegraf-hardened/pull/30).
 - Add rich messages, ephemeral messages, guest queries, live photos, managed bots, poll media, reaction moderation, and join-request query helpers.
-- Preserve business connections, forum topics, and reply targets in the new Context and `future` reply helpers.
+- Preserve business connections, forum topics, and reply targets across all 23 supported `future` reply helpers by reusing the Context send methods, including their method-specific restrictions.
 - Add `ctx.purchasedPaidMedia` for the `purchased_paid_media` update.
 - Keep the deprecated `getChatMembersCount` helper as an alias of the supported `getChatMemberCount` method.
 
@@ -17,6 +17,7 @@ These corrections apply to the unreleased 10.3 work, not a previously released p
 - `ctx.sendLivePhoto(photo, livePhoto, extra)` accepts uploads or file IDs for both inputs. Its payload uses `photo` and `live_photo`. Live-photo media groups and paid media use `media` for the video and `photo` for the still image.
 - Reaction moderation identifies the actor using `user_id` or `actor_chat_id`. Bulk deletion acts on the actor's recent reactions across the chat, not a single message.
 - `ctx.answerChatJoinRequestQuery('approve' | 'decline' | 'queue')` and `ctx.sendChatJoinRequestWebApp(url)` send `chat_join_request_query_id` and the documented result/URL fields.
+- `InputRichMessageDraft` and `InputRichBlockDraft` allow `thinking` blocks, including nested ones, only through draft helpers. Ordinary sends, edits, and inline results reject these blocks at compile time. Received `PollMedia` permits zero or one media field, not multiple fields.
 
 ```ts
 // In an update containing an ephemeral message:

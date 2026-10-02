@@ -2265,6 +2265,91 @@ test('useNewReplies replyWithRichMessage honours reply options and non-message u
     t.is(calls.length, 4)
 })
 
+test('useNewReplies preserves targets for every reply helper', async (t) => {
+    const helpers = {
+        reply: ['text'],
+        replyWithAnimation: ['file'],
+        replyWithAudio: ['file'],
+        replyWithContact: ['+123', 'Name'],
+        replyWithDice: [],
+        replyWithDocument: ['file'],
+        replyWithGame: ['game'],
+        replyWithHTML: ['<b>text</b>'],
+        replyWithInvoice: [
+            {
+                title: 'Item',
+                description: 'Item',
+                payload: 'item',
+                currency: 'XTR',
+                prices: [{ label: 'Item', amount: 1 }],
+            },
+        ],
+        replyWithLocation: [1, 2],
+        replyWithMarkdown: ['*text*'],
+        replyWithMarkdownV2: ['*text*'],
+        replyWithMediaGroup: [[{ type: 'photo', media: 'file' }]],
+        replyWithPhoto: ['file'],
+        replyWithPoll: ['Question', ['A', 'B']],
+        replyWithRichMessage: [richMarkdown],
+        replyWithLivePhoto: ['photo', 'video'],
+        replyWithQuiz: ['Question', ['A', 'B']],
+        replyWithSticker: ['file'],
+        replyWithVenue: [1, 2, 'Place', 'Address'],
+        replyWithVideo: ['file'],
+        replyWithVideoNote: ['file'],
+        replyWithVoice: ['file'],
+    }
+    const publicHelpers = Object.getOwnPropertyNames(Context.prototype).filter(
+        (name) => name.startsWith('reply') && name !== 'replyWithChatAction'
+    )
+    t.deepEqual(Object.keys(helpers).sort(), publicHelpers.sort())
+
+    for (const update of [
+        topicMessageUpdate,
+        businessMessageUpdate,
+        chatJoinRequestUpdate,
+    ]) {
+        for (const [helper, args] of Object.entries(helpers)) {
+            const { telegram, calls } = recordingTelegram()
+            const ctx = new Context(update, telegram, botInfo)
+            await ctx[helper](...args)
+            await withNewReplies(ctx, (replyCtx) => replyCtx[helper](...args))
+            const [plain, reply] = calls
+            t.is(reply[0], plain[0], helper)
+            t.deepEqual(
+                reply[1],
+                {
+                    ...plain[1],
+                    ...(ctx.msgId
+                        ? { reply_parameters: { message_id: ctx.msgId } }
+                        : {}),
+                },
+                helper
+            )
+
+            const extra = {
+                message_thread_id: 77,
+                reply_parameters: { message_id: 88, quote: 'Quote' },
+                ...(helper === 'replyWithInvoice'
+                    ? {}
+                    : { business_connection_id: 'override' }),
+            }
+            await ctx[helper](...args, extra)
+            t.is(calls[2][1].message_thread_id, 77, helper)
+            t.deepEqual(
+                calls[2][1].reply_parameters,
+                extra.reply_parameters,
+                helper
+            )
+            if (helper === 'replyWithInvoice') {
+                t.false('business_connection_id' in calls[2][1])
+            } else {
+                t.is(calls[2][1].business_connection_id, 'override', helper)
+            }
+        }
+    }
+})
+
 test('useNewReplies overrides every Context reply helper', async (t) => {
     const replyHelpers = Object.getOwnPropertyNames(Context.prototype).filter(
         (name) =>
@@ -2311,7 +2396,10 @@ test('Bot API 10.3 rich message fields are typed', (t) => {
     }
     const send = getMethodArgs(files.methods, 'sendRichMessage')
     const draft = getMethodArgs(files.methods, 'sendRichMessageDraft')
-    const inputRichMessage = getTypeAlias(files.methods, 'InputRichMessage<F>')
+    const inputRichMessage = getTypeAlias(
+        files.methods,
+        'InputRichMessage<F, Draft extends boolean = false>'
+    )
     const textVariant = 'text: string; rich_message?: undefined;'
     const richVariant = 'text?: undefined; rich_message: InputRichMessage<F>;'
     const editMessageText = getMethodArgTypes('editMessageText')
@@ -2348,7 +2436,7 @@ test('Bot API 10.3 rich message fields are typed', (t) => {
         'sendRichMessageDraft.rich_message': hasField(
             draft,
             'rich_message',
-            'InputRichMessage<F>'
+            'InputRichMessageDraft<F>'
         ),
         'sendRichMessageDraft.can_stop/keep_on_stop':
             hasOptionalField(draft, 'can_stop', 'boolean') &&
@@ -2376,14 +2464,14 @@ test('Bot API 10.3 rich message fields are typed', (t) => {
             editEphemeralMessageText[0].includes(textVariant) &&
             editEphemeralMessageText[0].includes(richVariant),
         'InputRichMessage content variants': [
-            'blocks: ReadonlyArray<InputRichBlock<F>>;',
+            'blocks: ReadonlyArray<InputRichBlock<F, Draft>>;',
             'html: string;',
             'markdown: string;',
             'media?: ReadonlyArray<InputRichMessageMedia<F>>;',
         ].every((member) => inputRichMessage.includes(member)),
         'InputRichBlock includes buttons': hasTypeMember(
             files.methods,
-            'InputRichBlock<F>',
+            'InputRichBlock<F, Draft extends boolean = false>',
             'RichBlockButtons'
         ),
         'RichBlockButtons.buttons': hasField(
@@ -2476,6 +2564,50 @@ test('rich_message coverage matches the Bot API types', async (t) => {
     }
     // every rich_message method is reachable from Context
     t.deepEqual([...reached].sort(), typed)
+})
+
+test('thinking blocks are supported only by draft helpers', async (t) => {
+    const richDraft = {
+        blocks: [
+            {
+                type: 'details',
+                summary: 'Progress',
+                blocks: [{ type: 'thinking', text: 'Working' }],
+            },
+        ],
+    }
+    const { telegram, calls } = recordingTelegram()
+    const ctx = new Context(callbackUpdate(ephemeralMessage), telegram, botInfo)
+    t.true(await ctx.sendRichMessageDraft(7, richDraft))
+    t.is(calls[0][0], 'sendRichMessageDraft')
+    t.is(calls[0][1].draft_id, 7)
+    t.is(calls[0][1].rich_message, richDraft)
+
+    await compileTypeScript(
+        'thinking-draft-types.ts',
+        [
+            `import { Context, Telegram } from '${packageRoot}'`,
+            `import type { InputRichBlockDraft, InputRichMessageDraft } from '${packageRoot}/types'`,
+            'declare const ctx: Context',
+            'declare const telegram: Telegram',
+            'const block: InputRichBlockDraft = { type: "thinking", text: "Working" }',
+            'const direct: InputRichMessageDraft = { blocks: [block] }',
+            `const nested: InputRichMessageDraft = ${JSON.stringify(
+                richDraft
+            )}`,
+            'void ctx.sendRichMessageDraft(1, direct)',
+            'void ctx.sendRichMessageDraft(1, nested)',
+            'void telegram.sendRichMessageDraft({ chat_id: 1, draft_id: 1, rich_message: nested })',
+            '// @ts-expect-error thinking is not valid in an ordinary message',
+            'void ctx.sendRichMessage(direct)',
+            '// @ts-expect-error nested thinking must not bypass the restriction',
+            'void ctx.replyWithRichMessage(nested)',
+            '// @ts-expect-error ordinary sends cannot contain draft blocks',
+            'void telegram.sendRichMessage({ chat_id: 1, rich_message: nested })',
+            '// @ts-expect-error edits cannot contain draft blocks',
+            'void ctx.editMessageText(undefined, { rich_message: nested })',
+        ].join('\n')
+    )
 })
 
 test('rich message APIs are typed for Telegram and Context', async (t) => {
@@ -3518,7 +3650,7 @@ test('reaction removal and join request queries serialize to the Bot API as JSON
 
 test('Telegram polls accept option objects with media', async (t) => {
     const { telegram, calls } = recordingTelegram()
-    const pollMedia = { type: 'link', url: 'https://example.test' }
+    const pollMedia = { type: 'photo', media: 'photo-id' }
     const mapOption = {
         text: 'Map',
         media: { type: 'location', latitude: 1, longitude: 2 },
@@ -3530,7 +3662,7 @@ test('Telegram polls accept option objects with media', async (t) => {
     await telegram.sendQuiz(42, 'Q?', [catOption, 'Dog'], {
         correct_option_ids: [0],
         explanation: 'Cats',
-        explanation_media: { type: 'sticker', media: 'sticker-id' },
+        explanation_media: { type: 'photo', media: 'photo-id' },
     })
     // string-only options keep their pre-10.3 payload
     await telegram.sendPoll(42, 'Legacy?', ['yes', 'no'])
@@ -3555,7 +3687,7 @@ test('Telegram polls accept option objects with media', async (t) => {
                 options: [catOption, { text: 'Dog' }],
                 correct_option_ids: [0],
                 explanation: 'Cats',
-                explanation_media: { type: 'sticker', media: 'sticker-id' },
+                explanation_media: { type: 'photo', media: 'photo-id' },
             },
         ],
         [
@@ -3634,7 +3766,7 @@ test('Context poll helpers accept option objects with media', async (t) => {
         [
             'sendPoll',
             {
-                chat_id: 42,
+                ...defaults,
                 type: 'regular',
                 question: 'Reply?',
                 options: [{ text: 'Dog' }, catOption],
