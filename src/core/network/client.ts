@@ -175,8 +175,22 @@ const DEFAULT_OPTIONS: ApiClient.Options = {
     requestTimeout: REQUEST_TIMEOUT,
 }
 
-/** Keys whose values are Bot API objects consisting of just `{ url }` (WebAppInfo, LoginUrl), never files */
-const URL_OBJECT_KEYS = new Set(['web_app', 'login_url'])
+/** Bot API file fields where `{ url, filename? }` denotes a download/upload. */
+const URL_FILE_KEYS = new Set([
+    'animation',
+    'audio',
+    'certificate',
+    'cover',
+    'document',
+    'live_photo',
+    'media',
+    'photo',
+    'sticker',
+    'thumbnail',
+    'video',
+    'video_note',
+    'voice',
+])
 
 /**
  * @param key the property the value is stored under, if any
@@ -184,13 +198,13 @@ const URL_OBJECT_KEYS = new Set(['web_app', 'login_url'])
 function isInputFile(value: unknown, key?: string): value is InputFile {
     if (!value || typeof value !== 'object') return false
     if (hasProp(value, 'source') && !!value.source) return true
-    // a URL file is exactly `{ url, filename? }`; objects with other keys (URL buttons,
-    // text_link entities, link media) are Bot API objects that must be sent as JSON
+    // Infer URL uploads only in known file fields. Other URL objects stay JSON.
     return (
+        key !== undefined &&
+        URL_FILE_KEYS.has(key) &&
         hasProp(value, 'url') &&
         !!value.url &&
-        Object.keys(value).every((k) => k === 'url' || k === 'filename') &&
-        !(key !== undefined && URL_OBJECT_KEYS.has(key))
+        Object.keys(value).every((k) => k === 'url' || k === 'filename')
     )
 }
 
@@ -199,7 +213,7 @@ function includesMediaValue(value: unknown, key?: string): boolean {
     if (Buffer.isBuffer(value) || isStream(value)) return false
     if (isInputFile(value, key)) return true
     if (Array.isArray(value))
-        return value.some((item) => includesMediaValue(item))
+        return value.some((item) => includesMediaValue(item, key))
     return Object.entries(value).some(([k, v]) => includesMediaValue(v, k))
 }
 
@@ -309,7 +323,7 @@ async function attachNestedFiles(
     }
     if (Array.isArray(value)) {
         return await Promise.all(
-            value.map((item) => attachNestedFiles(form, item, options))
+            value.map((item) => attachNestedFiles(form, item, options, key))
         )
     }
 
@@ -682,12 +696,17 @@ class ApiClient {
         )
         config.signal = signal
         const request = withTimeout(config, options.requestTimeout)
+        const { fetch } = options
         try {
-            const res = await options
-                .fetch(apiUrl, request.config as globalThis.RequestInit)
-                .catch((error: unknown) =>
-                    networkError(method, options, token, error)
+            let res: FetchResponse
+            try {
+                res = await fetch(
+                    apiUrl,
+                    request.config as globalThis.RequestInit
                 )
+            } catch (error) {
+                return networkError(method, options, token, error)
+            }
             const httpError = () =>
                 new TelegramError(
                     { error_code: res.status, description: res.statusText },

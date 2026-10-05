@@ -2610,6 +2610,33 @@ test('thinking blocks are supported only by draft helpers', async (t) => {
     )
 })
 
+test('release-note type migrations compile and reject ambiguous edits', async (t) => {
+    await compileTypeScript(
+        'release-note-type-migrations.ts',
+        [
+            `import { Context } from '${packageRoot}'`,
+            `import type { Convenience, ReplyParameters } from '${packageRoot}/types'`,
+            'declare const ctx: Context',
+            "const textExtra: Omit<Convenience.ExtraEditMessageText, 'rich_message'> = { parse_mode: 'HTML' }",
+            "void ctx.editMessageText('Updated', textExtra)",
+            "const richExtra = { rich_message: { html: '<b>Updated</b>' } } satisfies Convenience.ExtraEditMessageText",
+            'void ctx.editMessageText(undefined, richExtra)',
+            'declare const broadExtra: Convenience.ExtraEditMessageText',
+            '// @ts-expect-error broad extras might also contain rich_message',
+            "void ctx.editMessageText('Updated', broadExtra)",
+            '// @ts-expect-error rich edits must not also provide text',
+            "void ctx.editMessageText('Updated', richExtra)",
+            'const reply = { message_id: 42 } satisfies ReplyParameters',
+            'const ephemeralReply = { ephemeral_message_id: 7 } satisfies ReplyParameters',
+            "void ctx.reply('Reply', { reply_parameters: reply })",
+            "void ctx.reply('Reply', { reply_parameters: ephemeralReply, ephemeral_message_parameters: { receiver_user_id: 99 } })",
+            '// @ts-expect-error reply targets cannot be omitted',
+            'const empty = {} satisfies ReplyParameters',
+        ].join('\n')
+    )
+    t.pass()
+})
+
 test('rich message APIs are typed for Telegram and Context', async (t) => {
     await compileTypeScript(
         'rich-message-types.ts',

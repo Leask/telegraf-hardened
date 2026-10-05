@@ -4,8 +4,167 @@ const test = require('ava')
 const { createServer } = require('node:http')
 const { once, getEventListeners } = require('node:events')
 const { inspect } = require('node:util')
-const { Telegram, TelegrafNetworkError, TelegramError } = require('../')
+const { Input, Telegram, TelegrafNetworkError, TelegramError } = require('../')
 const { Polling } = require('../lib/core/network/polling')
+
+async function localApi(t) {
+    const requests = []
+    const server = createServer((req, res) => {
+        const chunks = []
+        req.on('data', (chunk) => chunks.push(chunk))
+        req.on('end', () => {
+            requests.push({
+                url: req.url,
+                headers: req.headers,
+                body: Buffer.concat(chunks).toString(),
+            })
+            if (req.url.startsWith('/files/')) {
+                res.end('file-bytes')
+                return
+            }
+            res.setHeader('content-type', 'application/json')
+            res.end(JSON.stringify({ ok: true, result: true }))
+        })
+    })
+    t.teardown(() => {
+        server.closeAllConnections()
+        server.close()
+    })
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    return {
+        apiRoot: `http://127.0.0.1:${server.address().port}`,
+        requests,
+    }
+}
+
+test('injected fetch is a bare call for API requests and file downloads', async (t) => {
+    const { apiRoot, requests } = await localApi(t)
+    let calls = 0
+    function fetch(url, init) {
+        if (this !== undefined) throw new TypeError('Illegal invocation')
+        calls++
+        return globalThis.fetch(url, init)
+    }
+    const telegram = new Telegram('123:secret', { apiRoot, fetch })
+    t.true(await telegram.getMe())
+    t.true(await telegram.sendPhoto(1, { url: `${apiRoot}/files/photo.png` }))
+    t.is(calls, 3)
+    t.deepEqual(
+        requests.map(({ url }) => url),
+        ['/bot123:secret/getMe', '/files/photo.png', '/bot123:secret/sendPhoto']
+    )
+    t.true(requests[2].body.includes('file-bytes'))
+})
+
+test('proxy fetch retains its explicitly bound receiver', async (t) => {
+    const { apiRoot } = await localApi(t)
+    const proxy = 'http://proxy.test:8080'
+    let calls = 0
+    class FetchClient {
+        constructor(options) {
+            this.proxy = options.proxy
+        }
+        fetch(url, init) {
+            t.is(this.proxy, proxy)
+            calls++
+            return globalThis.fetch(url, init)
+        }
+    }
+    const telegram = new Telegram('123:secret', {
+        apiRoot,
+        proxy: { proxy, FetchClient },
+    })
+    t.true(await telegram.getMe())
+    t.true(await telegram.sendPhoto(1, { url: `${apiRoot}/files/photo.png` }))
+    t.is(calls, 3)
+})
+
+test('synchronous fetch errors cross the sanitized network boundary', async (t) => {
+    const original = new TypeError('bot123:secret invalid receiver')
+    const telegram = new Telegram('123:secret', {
+        fetch: () => {
+            throw original
+        },
+    })
+    const error = await t.throwsAsync(telegram.getMe())
+    t.true(error instanceof TelegrafNetworkError)
+    t.is(error.errorName, 'TypeError')
+    t.false(inspect(error, { depth: null }).includes('secret'))
+    t.true(original.message.includes('secret'))
+})
+
+test('known file fields still download URL uploads', async (t) => {
+    const { apiRoot, requests } = await localApi(t)
+    const telegram = new Telegram('123:secret', { apiRoot })
+    const cases = [
+        ['sendAnimation', 'animation'],
+        ['sendAudio', 'audio'],
+        ['setWebhook', 'certificate', { url: `${apiRoot}/webhook` }],
+        ['sendVideo', 'cover', { video: 'video-id' }],
+        ['sendDocument', 'document'],
+        ['sendLivePhoto', 'live_photo', { photo: 'photo-id' }],
+        ['sendPhoto', 'photo'],
+        ['sendSticker', 'sticker'],
+        ['sendVideo', 'thumbnail', { video: 'video-id' }],
+        ['sendVideo', 'video'],
+        ['sendVideoNote', 'video_note'],
+        ['sendVoice', 'voice'],
+    ]
+    for (const [method, field, extra] of cases) {
+        await telegram.callApi(method, {
+            ...(method === 'setWebhook' ? {} : { chat_id: 1 }),
+            ...extra,
+            [field]: { url: `${apiRoot}/files/${field}`, filename: 'file.bin' },
+        })
+        const [download, upload] = requests.slice(-2)
+        t.is(download.url, `/files/${field}`)
+        t.is(upload.url, `/bot123:secret/${method}`)
+        t.true(upload.headers['content-type'].startsWith('multipart/'))
+        t.true(upload.body.includes('file-bytes'))
+    }
+    await telegram.sendMediaGroup(1, [
+        { type: 'photo', media: { url: `${apiRoot}/files/media.png` } },
+        { type: 'photo', media: 'photo-id' },
+    ])
+    const [download, upload] = requests.slice(-2)
+    t.is(download.url, '/files/media.png')
+    t.true(upload.body.includes('attach://'))
+    t.true(upload.body.includes('file-bytes'))
+    t.is(requests.length, (cases.length + 1) * 2)
+})
+
+for (const multipart of [false, true]) {
+    test(`unknown URL objects remain JSON (multipart: ${multipart})`, async (t) => {
+        const { apiRoot, requests } = await localApi(t)
+        const metadata = { url: `${apiRoot}/files/not-an-upload` }
+        const telegram = new Telegram('123:secret', { apiRoot })
+        const payload = {
+            chat_id: 1,
+            future_info: metadata,
+            nested: [metadata],
+        }
+        if (multipart) {
+            payload.photo = Input.fromBuffer(Buffer.from('photo'), 'photo.png')
+            await telegram.callApi('sendPhoto', payload)
+        } else {
+            payload.text = 'hi'
+            await telegram.callApi('sendMessage', payload)
+        }
+        t.is(requests.length, 1, 'metadata URLs must not be fetched')
+        const request = requests[0]
+        if (multipart) {
+            t.true(request.headers['content-type'].startsWith('multipart/'))
+            t.true(request.body.includes(JSON.stringify(metadata)))
+            t.true(request.body.includes(JSON.stringify([metadata])))
+            t.false(request.body.includes('attach://'))
+        } else {
+            t.is(request.headers['content-type'], 'application/json')
+            t.deepEqual(JSON.parse(request.body).future_info, metadata)
+            t.deepEqual(JSON.parse(request.body).nested, [metadata])
+        }
+    })
+}
 
 for (const abort of [false, true]) {
     test.serial(
@@ -127,6 +286,66 @@ test('polling stops cleanly when its active request is aborted', async (t) => {
     })
     const polling = new Polling(telegram, [])
     await t.notThrowsAsync(polling.loop(async () => undefined))
+})
+
+for (const failure of ['network', 'api', 'unexpected']) {
+    test(`polling preserves ${failure} failures after stop`, async (t) => {
+        const original =
+            failure === 'network'
+                ? new TelegrafNetworkError(
+                      'Timed out',
+                      { method: 'getUpdates' },
+                      { errorName: 'TimeoutError', transient: true }
+                  )
+                : failure === 'api'
+                ? new TelegramError({ error_code: 401, description: 'Denied' })
+                : new Error('Unexpected failure')
+        let calls = 0
+        let synced = 0
+        const polling = new Polling(
+            {
+                callApi: async (_method, payload) => {
+                    if (payload.limit === 1) {
+                        synced++
+                        return []
+                    }
+                    calls++
+                    polling.stop()
+                    throw original
+                },
+            },
+            []
+        )
+        const error = await t.throwsAsync(polling.loop(async () => undefined))
+        t.is(error, original)
+        t.is(calls, 1)
+        t.is(synced, 1)
+    })
+}
+
+test('update handler failures propagate even when the handler stops polling', async (t) => {
+    const original = new Error('Handler failed during shutdown')
+    let synced = 0
+    const polling = new Polling(
+        {
+            callApi: async (_method, payload) => {
+                if (payload.limit === 1) {
+                    synced++
+                    return []
+                }
+                return [{ update_id: 1 }]
+            },
+        },
+        []
+    )
+    const error = await t.throwsAsync(
+        polling.loop(async () => {
+            polling.stop()
+            throw original
+        })
+    )
+    t.is(error, original)
+    t.is(synced, 1)
 })
 
 test('native request timeouts are retryable network errors', async (t) => {
