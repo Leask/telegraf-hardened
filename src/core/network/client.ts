@@ -698,7 +698,12 @@ class ApiClient {
                 const body = res.body as {
                     cancel?: () => Promise<void>
                 } | null
-                await body?.cancel?.().catch(() => undefined)
+                // best effort: never wait on cancellation, it may not settle
+                try {
+                    body?.cancel?.()?.catch(() => undefined)
+                } catch {
+                    // ignore
+                }
                 throw httpError()
             }
             let data: ApiResponse<ReturnType<Telegram[M]>>
