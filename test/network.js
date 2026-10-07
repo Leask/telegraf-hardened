@@ -207,7 +207,34 @@ const shutdownFailures = {
     unexpected: new Error('Unexpected failure'),
 }
 
+const retryableAtShutdown = ['timeout', 'unavailable']
+
+for (const name of retryableAtShutdown) {
+    test(`polling ends cleanly on a retryable ${name} error after stop`, async (t) => {
+        let calls = 0
+        let synced = 0
+        const polling = new Polling(
+            {
+                callApi: async (_method, payload) => {
+                    if (payload.limit === 1) {
+                        synced++
+                        return []
+                    }
+                    calls++
+                    polling.stop()
+                    throw shutdownFailures[name]
+                },
+            },
+            []
+        )
+        await t.notThrowsAsync(polling.loop(async () => undefined))
+        t.is(calls, 1)
+        t.is(synced, 1)
+    })
+}
+
 for (const [name, original] of Object.entries(shutdownFailures)) {
+    if (retryableAtShutdown.includes(name)) continue
     test(`polling preserves ${name} errors after stop`, async (t) => {
         let calls = 0
         let synced = 0

@@ -59,6 +59,15 @@ export class Polling {
                         err.errorName === 'AbortError'
                     )
                         return
+                    // a retryable failure racing with stop() should not fail a
+                    // graceful shutdown
+                    if (
+                        (err instanceof TelegrafNetworkError &&
+                            err.transient) ||
+                        (err instanceof TelegramError &&
+                            (err.code === 429 || err.code >= 500))
+                    )
+                        return
                     if (unauthorizedOrConflict) this.skipOffsetSync = true
                     throw err
                 }
