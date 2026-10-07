@@ -289,6 +289,11 @@ test('polling stops cleanly when its active request is aborted', async (t) => {
 })
 
 const shutdownFailures = {
+    connection: new TelegrafNetworkError(
+        'Socket closed',
+        { method: 'getUpdates' },
+        { errorName: 'TypeError', code: 'ECONNRESET', transient: true }
+    ),
     timeout: new TelegrafNetworkError(
         'Timed out',
         { method: 'getUpdates' },
@@ -299,8 +304,18 @@ const shutdownFailures = {
         { method: 'getUpdates' },
         { errorName: 'TypeError' }
     ),
+    badRequest: new TelegramError({
+        error_code: 400,
+        description: 'Bad request',
+    }),
     unauthorized: new TelegramError({ error_code: 401, description: 'Denied' }),
     conflict: new TelegramError({ error_code: 409, description: 'Conflict' }),
+    rateLimited: new TelegramError({
+        error_code: 429,
+        description: 'Too many requests',
+        parameters: { retry_after: 30 },
+    }),
+    gateway: new TelegramError({ error_code: 502, description: 'Bad gateway' }),
     unavailable: new TelegramError({
         error_code: 503,
         description: 'Service unavailable',
@@ -308,7 +323,40 @@ const shutdownFailures = {
     unexpected: new Error('Unexpected failure'),
 }
 
+const retryableAtShutdown = [
+    'connection',
+    'timeout',
+    'rateLimited',
+    'gateway',
+    'unavailable',
+]
+
+for (const name of retryableAtShutdown) {
+    test(`polling ends cleanly on a retryable ${name} error after stop`, async (t) => {
+        let calls = 0
+        let synced = 0
+        const polling = new Polling(
+            {
+                callApi: async (_method, payload) => {
+                    if (payload.limit === 1) {
+                        synced++
+                        return []
+                    }
+                    calls++
+                    polling.stop()
+                    throw shutdownFailures[name]
+                },
+            },
+            []
+        )
+        await t.notThrowsAsync(polling.loop(async () => undefined))
+        t.is(calls, 1)
+        t.is(synced, 1)
+    })
+}
+
 for (const [name, original] of Object.entries(shutdownFailures)) {
+    if (retryableAtShutdown.includes(name)) continue
     test(`polling preserves ${name} errors after stop`, async (t) => {
         let calls = 0
         let synced = 0
@@ -334,30 +382,41 @@ for (const [name, original] of Object.entries(shutdownFailures)) {
     })
 }
 
-test('update handler failures propagate even when the handler stops polling', async (t) => {
-    const original = new Error('Handler failed during shutdown')
-    let synced = 0
-    const polling = new Polling(
-        {
-            callApi: async (_method, payload) => {
-                if (payload.limit === 1) {
-                    synced++
-                    return []
-                }
-                return [{ update_id: 1 }]
+const handlerFailures = {
+    ...shutdownFailures,
+    aborted: new TelegrafNetworkError(
+        'Handler aborted',
+        { method: 'getUpdates' },
+        { errorName: 'AbortError' }
+    ),
+}
+
+for (const name of ['unexpected', ...retryableAtShutdown, 'aborted']) {
+    test(`update handler ${name} errors propagate after stop`, async (t) => {
+        const original = handlerFailures[name]
+        let synced = 0
+        const polling = new Polling(
+            {
+                callApi: async (_method, payload) => {
+                    if (payload.limit === 1) {
+                        synced++
+                        return []
+                    }
+                    return [{ update_id: 1 }]
+                },
             },
-        },
-        []
-    )
-    const error = await t.throwsAsync(
-        polling.loop(async () => {
-            polling.stop()
-            throw original
-        })
-    )
-    t.is(error, original)
-    t.is(synced, 1)
-})
+            []
+        )
+        const error = await t.throwsAsync(
+            polling.loop(async () => {
+                polling.stop()
+                throw original
+            })
+        )
+        t.is(error, original)
+        t.is(synced, 1)
+    })
+}
 
 test('native request timeouts are retryable network errors', async (t) => {
     const server = createServer(() => undefined)
@@ -467,7 +526,7 @@ test('polling does not silently swallow an unsolicited abort', async (t) => {
     t.is(error.errorName, 'AbortError')
 })
 
-for (const code of [409, 429, 503]) {
+for (const code of [409, 429, 502, 503]) {
     test(`stop interrupts the ${code} retry delay`, async (t) => {
         t.timeout(2000)
         let calls = 0
