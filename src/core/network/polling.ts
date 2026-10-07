@@ -49,12 +49,18 @@ export class Polling {
                     parameters?: { retry_after: number }
                     code?: string | number
                 }
+                const unauthorizedOrConflict =
+                    err instanceof TelegramError &&
+                    (err.code === 401 || err.code === 409)
 
-                if (
-                    this.abortController.signal.aborted &&
-                    err instanceof TelegrafNetworkError
-                ) {
-                    return
+                if (this.abortController.signal.aborted) {
+                    if (
+                        err instanceof TelegrafNetworkError &&
+                        err.errorName === 'AbortError'
+                    )
+                        return
+                    if (unauthorizedOrConflict) this.skipOffsetSync = true
+                    throw err
                 }
 
                 if (
@@ -101,11 +107,7 @@ export class Polling {
                     await this.wait(retryAfter * 1000)
                     continue
                 }
-                if (
-                    err instanceof TelegramError &&
-                    // Unauthorized      Conflict
-                    (err.code === 401 || err.code === 409)
-                ) {
+                if (unauthorizedOrConflict) {
                     this.skipOffsetSync = true
                     throw err
                 }

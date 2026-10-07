@@ -49,6 +49,7 @@ async function nativeFetch(url: URL | string, init?: globalThis.RequestInit) {
     return await globalThis.fetch(url, init)
 }
 
+/** Callers own cleanup; Bot API calls keep it active through body consumption. */
 function withTimeout(config: RequestConfig, timeout: number) {
     if (timeout <= 0 || !Number.isFinite(timeout)) {
         return {
@@ -143,6 +144,7 @@ namespace ApiClient {
          *
          * Provide a custom fetch implementation for proxy agents, custom TLS,
          * custom compression, or other non-standard network behavior.
+         * It is called as a standalone function; bind instance methods first.
          */
         fetch: Fetch
         /**
@@ -517,6 +519,7 @@ function sanitizeObject(
     return clean
 }
 
+/** Build bounded, token-safe diagnostic copies without mutating the input. */
 function sanitizeCause(
     error: unknown,
     token: string,
@@ -679,11 +682,12 @@ class ApiClient {
         )
         config.signal = signal
         const request = withTimeout(config, options.requestTimeout)
+        const { fetch } = options
         try {
             // async wrapper: a synchronous throw from a custom fetch is
             // reported as a network error like any rejection
             const res = await (async () =>
-                options.fetch(
+                fetch(
                     apiUrl,
                     request.config as globalThis.RequestInit
                 ))().catch((error: unknown) =>
