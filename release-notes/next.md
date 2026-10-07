@@ -67,11 +67,11 @@ await ctx.reply('Reply', {
 
 - Restore `npm test` to the complete AVA suite, not only the API synchronization tests. Run clean installs, tests, and lint on Node 18, 20, 22, 24, and 26.
 - Keep request cancellation active while reading response bodies, preserve timeout reasons, and retry transient polling failures. Stopping polling interrupts backoff promptly.
-- Normalize response read failures without losing HTTP errors. Bound and sanitize diagnostic causes without mutating native errors or leaking bot tokens.
+- Preserve unreadable HTTP 4xx statuses, unless body reading was interrupted by a caller abort or timeout; then preserve the cancellation reason. Cancel 5xx bodies best-effort without awaiting cancellation, even if cancellation never settles, rejects, or throws. Bound and sanitize diagnostic causes without mutating native errors or leaking bot tokens.
 - Invoke injected fetch functions without an options-object receiver, while preserving explicitly bound proxy transports. Synchronous API fetch errors cross the same sanitized network-error boundary as rejected promises.
 - Infer `{ url, filename? }` uploads only in known file fields; unrelated URL objects remain JSON, including inside multipart requests. Explicit `InputFile` source objects retain their existing upload behavior.
-- On polling shutdown, suppress only the cancelled request's `TelegrafNetworkError` with `errorName: 'AbortError'`. Other request failures and update-handler failures remain observable. Update handlers run outside the polling iterator's request-error catch.
-- The original timeout and error-boundary fixes are also available independently of 10.3 in [PR #31](https://github.com/telegraf-hardened/telegraf-hardened/pull/31); this candidate adds the review refinements described above.
+- On polling shutdown, suppress only the cancelled request's `TelegrafNetworkError` with `errorName: 'AbortError'`. Other request failures and update-handler failures remain observable. HTTP 401/409 still skip final offset synchronization, including with conflict retries enabled. Update handlers run outside the polling iterator's request-error catch.
+- The original timeout and error-boundary fixes and their latest cancellation regressions are also available independently of 10.3 in [PR #31](https://github.com/telegraf-hardened/telegraf-hardened/pull/31). This candidate includes those commits and preserves the additional 10.3 upload/type refinements described above.
 
 ## Release Prerequisites
 

@@ -288,18 +288,28 @@ test('polling stops cleanly when its active request is aborted', async (t) => {
     await t.notThrowsAsync(polling.loop(async () => undefined))
 })
 
-for (const failure of ['network', 'api', 'unexpected']) {
-    test(`polling preserves ${failure} failures after stop`, async (t) => {
-        const original =
-            failure === 'network'
-                ? new TelegrafNetworkError(
-                      'Timed out',
-                      { method: 'getUpdates' },
-                      { errorName: 'TimeoutError', transient: true }
-                  )
-                : failure === 'api'
-                ? new TelegramError({ error_code: 401, description: 'Denied' })
-                : new Error('Unexpected failure')
+const shutdownFailures = {
+    timeout: new TelegrafNetworkError(
+        'Timed out',
+        { method: 'getUpdates' },
+        { errorName: 'TimeoutError', transient: true }
+    ),
+    permanent: new TelegrafNetworkError(
+        'Invalid transport',
+        { method: 'getUpdates' },
+        { errorName: 'TypeError' }
+    ),
+    unauthorized: new TelegramError({ error_code: 401, description: 'Denied' }),
+    conflict: new TelegramError({ error_code: 409, description: 'Conflict' }),
+    unavailable: new TelegramError({
+        error_code: 503,
+        description: 'Service unavailable',
+    }),
+    unexpected: new Error('Unexpected failure'),
+}
+
+for (const [name, original] of Object.entries(shutdownFailures)) {
+    test(`polling preserves ${name} errors after stop`, async (t) => {
         let calls = 0
         let synced = 0
         const polling = new Polling(
@@ -314,12 +324,13 @@ for (const failure of ['network', 'api', 'unexpected']) {
                     throw original
                 },
             },
-            []
+            [],
+            { retryOnConflict: true }
         )
         const error = await t.throwsAsync(polling.loop(async () => undefined))
         t.is(error, original)
         t.is(calls, 1)
-        t.is(synced, 1)
+        t.is(synced, ['unauthorized', 'conflict'].includes(name) ? 0 : 1)
     })
 }
 
@@ -505,4 +516,121 @@ test('polling retries transient errors after backoff', async (t) => {
     const polling = new Polling(telegram, [])
     await t.notThrowsAsync(polling.loop(async () => undefined))
     t.is(calls, 2)
+})
+
+test('5xx responses start body cancellation before failing', async (t) => {
+    let cancelled = false
+    const telegram = new Telegram('123:secret', {
+        fetch: async () => ({
+            status: 502,
+            statusText: 'Bad Gateway',
+            body: {
+                cancel: async () => {
+                    cancelled = true
+                },
+            },
+        }),
+    })
+    const error = await t.throwsAsync(telegram.getMe())
+    t.true(error instanceof TelegramError)
+    t.is(error.code, 502)
+    t.true(cancelled)
+})
+
+for (const behavior of ['pending', 'rejected', 'throwing']) {
+    test(`5xx body cancellation cannot mask the HTTP error (${behavior})`, async (t) => {
+        t.timeout(1000)
+        let cancelled = 0
+        let parsed = false
+        const cancel = () => {
+            cancelled++
+            if (behavior === 'pending') return new Promise(() => undefined)
+            throw new Error('Cancellation failed')
+        }
+        const body =
+            behavior === 'throwing'
+                ? { cancel }
+                : new ReadableStream({ cancel })
+        const telegram = new Telegram('123:secret', {
+            fetch: async () => ({
+                status: 503,
+                statusText: 'Service unavailable',
+                body,
+                json: async () => {
+                    parsed = true
+                    return { ok: true, result: true }
+                },
+            }),
+        })
+        const error = await t.throwsAsync(telegram.getMe())
+        t.true(error instanceof TelegramError)
+        t.is(error.code, 503)
+        t.is(cancelled, 1)
+        t.false(parsed)
+        // Flush rejected cancellation promises so AVA catches unhandled ones.
+        await new Promise((resolve) => setImmediate(resolve))
+    })
+}
+
+for (const status of [401, 409, 429]) {
+    for (const abort of [false, true]) {
+        test(`native HTTP ${status} body preserves cancellation (abort: ${abort})`, async (t) => {
+            const controller = new AbortController()
+            let headersSeen = false
+            let abortTimer
+            const server = createServer((_req, res) => {
+                res.writeHead(status, { 'Content-Type': 'application/json' })
+                res.flushHeaders()
+                if (abort) abortTimer = setTimeout(() => controller.abort(), 20)
+            })
+            t.teardown(() => {
+                clearTimeout(abortTimer)
+                controller.abort()
+                server.closeAllConnections()
+                server.close()
+            })
+            server.listen(0, '127.0.0.1')
+            await once(server, 'listening')
+            const telegram = new Telegram('123:secret', {
+                apiRoot: `http://127.0.0.1:${server.address().port}`,
+                requestTimeout: abort ? 2000 : 200,
+                fetch: async (url, init) => {
+                    const response = await globalThis.fetch(url, init)
+                    headersSeen = response.status === status
+                    return response
+                },
+            })
+            const error = await t.throwsAsync(
+                telegram.callApi('getMe', {}, { signal: controller.signal })
+            )
+            t.true(error instanceof TelegrafNetworkError)
+            t.true(headersSeen, 'the HTTP status must precede cancellation')
+            t.is(error.errorName, abort ? 'AbortError' : 'TimeoutError')
+            t.is(error.transient, !abort)
+        })
+    }
+}
+
+test('a timeout while reading a 4xx body is not reported as an HTTP error', async (t) => {
+    // This fake transport has no socket to keep AbortSignal.timeout alive.
+    const keepAlive = setInterval(() => undefined, 1000)
+    t.teardown(() => clearInterval(keepAlive))
+    const timeout = new DOMException('timed out', 'TimeoutError')
+    const telegram = new Telegram('123:secret', {
+        requestTimeout: 20,
+        fetch: async (_url, init) => ({
+            status: 429,
+            statusText: 'Too Many Requests',
+            json: () =>
+                new Promise((_resolve, reject) =>
+                    init.signal.addEventListener('abort', () =>
+                        reject(init.signal.reason ?? timeout)
+                    )
+                ),
+        }),
+    })
+    const error = await t.throwsAsync(telegram.getMe())
+    t.true(error instanceof TelegrafNetworkError)
+    t.is(error.errorName, 'TimeoutError')
+    t.true(error.transient)
 })

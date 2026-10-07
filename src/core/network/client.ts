@@ -49,6 +49,7 @@ async function nativeFetch(url: URL | string, init?: globalThis.RequestInit) {
     return await globalThis.fetch(url, init)
 }
 
+/** Callers own cleanup; Bot API calls keep it active through body consumption. */
 function withTimeout(config: RequestConfig, timeout: number) {
     if (timeout <= 0 || !Number.isFinite(timeout)) {
         return {
@@ -143,6 +144,7 @@ namespace ApiClient {
          *
          * Provide a custom fetch implementation for proxy agents, custom TLS,
          * custom compression, or other non-standard network behavior.
+         * It is called as a standalone function; bind instance methods first.
          */
         fetch: Fetch
         /**
@@ -534,6 +536,7 @@ function sanitizeObject(
     return clean
 }
 
+/** Build bounded, token-safe diagnostic copies without mutating the input. */
 function sanitizeCause(
     error: unknown,
     token: string,
@@ -698,30 +701,46 @@ class ApiClient {
         const request = withTimeout(config, options.requestTimeout)
         const { fetch } = options
         try {
-            let res: FetchResponse
-            try {
-                res = await fetch(
+            // async wrapper: a synchronous throw from a custom fetch is
+            // reported as a network error like any rejection
+            const res = await (async () =>
+                fetch(
                     apiUrl,
                     request.config as globalThis.RequestInit
-                )
-            } catch (error) {
-                return networkError(method, options, token, error)
-            }
+                ))().catch((error: unknown) =>
+                networkError(method, options, token, error)
+            )
             const httpError = () =>
                 new TelegramError(
                     { error_code: res.status, description: res.statusText },
                     { method, payload }
                 )
-            if (res.status >= 500) throw httpError()
+            if (res.status >= 500) {
+                const body = res.body as {
+                    cancel?: () => Promise<void>
+                } | null
+                // best effort: never wait on cancellation, it may not settle
+                try {
+                    body?.cancel?.()?.catch(() => undefined)
+                } catch {
+                    // ignore
+                }
+                throw httpError()
+            }
             let data: ApiResponse<ReturnType<Telegram[M]>>
             try {
                 data = (await res.json()) as typeof data
             } catch (error) {
+                if (request.config.signal?.aborted) {
+                    return networkError(
+                        method,
+                        options,
+                        token,
+                        request.config.signal.reason
+                    )
+                }
                 if (res.status >= 400) throw httpError()
-                const reason = request.config.signal?.aborted
-                    ? request.config.signal.reason
-                    : error
-                return networkError(method, options, token, reason)
+                return networkError(method, options, token, error)
             }
             if (!data.ok) {
                 debug('API call failed', data)

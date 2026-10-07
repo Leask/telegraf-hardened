@@ -411,12 +411,25 @@ reject with `TelegrafNetworkError`. It exposes the API method, request metadata,
 copy, not the original transport error. Diagnostic cause chains are bounded;
 bot tokens are redacted without modifying native or custom fetch errors.
 
+Synchronous throws from an injected fetch use the same error boundary as
+rejected promises. Fetch is invoked as a standalone function; bind transports
+which require an instance receiver before injecting them.
+
+An unreadable HTTP 4xx body preserves its status as `TelegramError`, unless
+reading was interrupted by a caller abort or request timeout. In that case,
+the cancellation reason is preserved as `TelegrafNetworkError`. HTTP 5xx bodies
+are cancelled best-effort without waiting for cancellation to finish, so a
+pending or failed cancellation cannot hide the HTTP error or prevent retries.
+
 Long polling retries transient transport errors (including native fetch
 `TimeoutError`), HTTP 5xx and Telegram 429 responses. A caller abort is not a
-timeout: polling stops normally only when its own stop signal is set. An
-unexpected transport `AbortError` propagates instead of silently ending the
-polling loop. `bot.stop()` also interrupts retry backoff, including opt-in 409
-conflict retries, before the final update-offset synchronization.
+timeout: polling suppresses a request `AbortError` only when its own stop
+signal is set. Other request errors still propagate if they arrive after
+`stop()`. An unexpected transport `AbortError` propagates instead of silently
+ending the polling loop. `bot.stop()` also interrupts retry backoff, including
+opt-in 409 conflict retries, before the final update-offset synchronization.
+Update handlers run outside the request-error catch; stopping polling does not
+suppress their errors.
 
 If middleware throws an error or times out, Telegraf calls `bot.handleError`. If it rethrows, update source closes, and then the error is printed to console and process terminates. If it does not rethrow, the error is swallowed.
 
