@@ -575,16 +575,14 @@ for (const behavior of ['pending', 'rejected', 'throwing']) {
 for (const status of [401, 409, 429]) {
     for (const abort of [false, true]) {
         test(`native HTTP ${status} body preserves cancellation (abort: ${abort})`, async (t) => {
+            t.timeout(5000)
             const controller = new AbortController()
             let headersSeen = false
-            let abortTimer
             const server = createServer((_req, res) => {
                 res.writeHead(status, { 'Content-Type': 'application/json' })
                 res.flushHeaders()
-                if (abort) abortTimer = setTimeout(() => controller.abort(), 20)
             })
             t.teardown(() => {
-                clearTimeout(abortTimer)
                 controller.abort()
                 server.closeAllConnections()
                 server.close()
@@ -593,10 +591,18 @@ for (const status of [401, 409, 429]) {
             await once(server, 'listening')
             const telegram = new Telegram('123:secret', {
                 apiRoot: `http://127.0.0.1:${server.address().port}`,
-                requestTimeout: abort ? 2000 : 200,
+                // This test targets body reads, not connection/startup timing.
+                requestTimeout: 0,
                 fetch: async (url, init) => {
                     const response = await globalThis.fetch(url, init)
                     headersSeen = response.status === status
+                    const deadline = AbortSignal.timeout(20)
+                    const cancel = () =>
+                        controller.abort(abort ? undefined : deadline.reason)
+                    deadline.addEventListener('abort', cancel, { once: true })
+                    t.teardown(() =>
+                        deadline.removeEventListener('abort', cancel)
+                    )
                     return response
                 },
             })
