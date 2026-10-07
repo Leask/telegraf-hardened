@@ -287,3 +287,53 @@ test('polling retries transient errors after backoff', async (t) => {
     await t.notThrowsAsync(polling.loop(async () => undefined))
     t.is(calls, 2)
 })
+
+test('a synchronous throw from a custom fetch becomes a network error', async (t) => {
+    const telegram = new Telegram('123:secret', {
+        fetch: () => {
+            throw new TypeError('sync failure for /bot123:secret/getMe')
+        },
+    })
+    const error = await t.throwsAsync(telegram.getMe())
+    t.true(error instanceof TelegrafNetworkError)
+    t.false(error.message.includes('secret'))
+})
+
+test('5xx responses release their body before failing', async (t) => {
+    let cancelled = false
+    const telegram = new Telegram('123:secret', {
+        fetch: async () => ({
+            status: 502,
+            statusText: 'Bad Gateway',
+            body: {
+                cancel: async () => {
+                    cancelled = true
+                },
+            },
+        }),
+    })
+    const error = await t.throwsAsync(telegram.getMe())
+    t.true(error instanceof TelegramError)
+    t.is(error.code, 502)
+    t.true(cancelled)
+})
+
+test('a timeout while reading a 4xx body is not reported as an HTTP error', async (t) => {
+    const timeout = new DOMException('timed out', 'TimeoutError')
+    const telegram = new Telegram('123:secret', {
+        requestTimeout: 20,
+        fetch: async (_url, init) => ({
+            status: 429,
+            statusText: 'Too Many Requests',
+            json: () =>
+                new Promise((_resolve, reject) =>
+                    init.signal.addEventListener('abort', () =>
+                        reject(init.signal.reason ?? timeout)
+                    )
+                ),
+        }),
+    })
+    const error = await t.throwsAsync(telegram.getMe())
+    t.true(error instanceof TelegrafNetworkError)
+    t.true(error.transient)
+})

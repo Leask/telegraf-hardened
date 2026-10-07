@@ -680,26 +680,41 @@ class ApiClient {
         config.signal = signal
         const request = withTimeout(config, options.requestTimeout)
         try {
-            const res = await options
-                .fetch(apiUrl, request.config as globalThis.RequestInit)
-                .catch((error: unknown) =>
-                    networkError(method, options, token, error)
-                )
+            // async wrapper: a synchronous throw from a custom fetch is
+            // reported as a network error like any rejection
+            const res = await (async () =>
+                options.fetch(
+                    apiUrl,
+                    request.config as globalThis.RequestInit
+                ))().catch((error: unknown) =>
+                networkError(method, options, token, error)
+            )
             const httpError = () =>
                 new TelegramError(
                     { error_code: res.status, description: res.statusText },
                     { method, payload }
                 )
-            if (res.status >= 500) throw httpError()
+            if (res.status >= 500) {
+                const body = res.body as {
+                    cancel?: () => Promise<void>
+                } | null
+                await body?.cancel?.().catch(() => undefined)
+                throw httpError()
+            }
             let data: ApiResponse<ReturnType<Telegram[M]>>
             try {
                 data = (await res.json()) as typeof data
             } catch (error) {
+                if (request.config.signal?.aborted) {
+                    return networkError(
+                        method,
+                        options,
+                        token,
+                        request.config.signal.reason
+                    )
+                }
                 if (res.status >= 400) throw httpError()
-                const reason = request.config.signal?.aborted
-                    ? request.config.signal.reason
-                    : error
-                return networkError(method, options, token, reason)
+                return networkError(method, options, token, error)
             }
             if (!data.ok) {
                 debug('API call failed', data)

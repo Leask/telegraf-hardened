@@ -50,7 +50,12 @@ export class Polling {
                     code?: string | number
                 }
 
-                if (this.abortController.signal.aborted) return
+                if (
+                    this.abortController.signal.aborted &&
+                    err instanceof TelegrafNetworkError
+                ) {
+                    return
+                }
 
                 if (
                     err instanceof TelegramError &&
