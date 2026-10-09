@@ -422,12 +422,15 @@ are cancelled best-effort without waiting for cancellation to finish, so a
 pending or failed cancellation cannot hide the HTTP error or prevent retries.
 
 Long polling retries transient transport errors (including native fetch
-`TimeoutError`), HTTP 5xx and Telegram 429 responses. Once its own stop signal
-is set, polling exits normally on a typed request `AbortError` or one of those
-retryable request errors, without retrying. Non-retryable API errors (including
-HTTP 401/409), permanent network errors and unexpected request errors still
-propagate if they race with `stop()`. HTTP 401/409 also skip final update-offset
-synchronization.
+`TimeoutError`), HTTP 5xx and Telegram 429 responses. HTTP 409 retries during
+normal polling only when `retryOnConflict` is enabled; otherwise it propagates.
+
+Once its own stop signal is set, polling exits normally on a typed request
+`AbortError`, transient transport error, HTTP 429 or HTTP 5xx, without retrying.
+HTTP 401 and HTTP 409 still propagate after stop, even when `retryOnConflict`
+is enabled. Other non-retryable API errors, permanent network errors and
+unexpected request errors also propagate if they race with `stop()`.
+Propagating HTTP 401 or HTTP 409 errors skips final update-offset synchronization.
 An unsolicited transport `AbortError` while polling is active still propagates.
 `bot.stop()` interrupts retry backoff, including opt-in 409 conflict retries,
 before the final update-offset synchronization.
