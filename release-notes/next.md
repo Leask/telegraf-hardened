@@ -18,6 +18,7 @@ These corrections apply to the unreleased 10.3 work, not a previously released p
 - Reaction moderation identifies the actor using `user_id` or `actor_chat_id`. Bulk deletion acts on the actor's recent reactions across the chat, not a single message.
 - `ctx.answerChatJoinRequestQuery('approve' | 'decline' | 'queue')` and `ctx.sendChatJoinRequestWebApp(url)` send `chat_join_request_query_id` and the documented result/URL fields.
 - `InputRichMessageDraft` and `InputRichBlockDraft` allow `thinking` blocks, including nested ones, only through draft helpers. Ordinary sends, edits, and inline results reject these blocks at compile time. Received `PollMedia` permits zero or one media field, not multiple fields.
+- A field check such as `media.photo !== undefined` narrows received `PollMedia` to that variant. `ChatFullInfo.personal_chat` is a `Chat.ChannelChat`, and the `PaidMedia` namespace is exported, so variants such as `PaidMedia.PaidMediaPhoto` can be named.
 
 ```ts
 // In an update containing an ephemeral message:
@@ -75,6 +76,6 @@ await ctx.reply('Reply', {
 
 ## Release Prerequisites
 
-**Release blocker: do not publish this branch while `@telegraf/types` uses the personal Git fork.** The corrected types are pending in [types PR #6](https://github.com/telegraf-hardened/types/pull/6) and [#7](https://github.com/telegraf-hardened/types/pull/7). Until they are published, this branch uses an immutable HTTPS Git dependency. Run `npm ci` with lifecycle scripts enabled to generate its declaration files; an SSH key is not needed. This temporary CI exception enables lifecycle scripts for all dependencies, not just types. PR CI uses read-only repository permissions and does not persist checkout credentials, but that does not make dependency scripts inherently trusted.
+**Release blocker: do not publish this branch while `@telegraf/types` uses a Git pin.** The corrected types from [types PR #6](https://github.com/telegraf-hardened/types/pull/6) and [#7](https://github.com/telegraf-hardened/types/pull/7) are merged into `telegraf-hardened/types` (`e5ee830`) but not yet published to npm. Until they are published, this branch uses an immutable HTTPS Git dependency on that merge commit. Run `npm ci` with lifecycle scripts enabled to generate its declaration files; an SSH key is not needed. This temporary CI exception enables lifecycle scripts for all dependencies, not just types. PR CI uses read-only repository permissions and does not persist checkout credentials, but that does not make dependency scripts inherently trusted.
 
 Before a release, switch `@telegraf/types` back to `npm:@telegraf-hardened/types@^10.3.1` (or the version actually released), regenerate the lockfile, restore `npm ci --ignore-scripts` with an explicit project build in CI, validate a clean install and the complete Node matrix, and complete the community live-bot checks tracked in [Roadmap v4](https://github.com/telegraf-hardened/telegraf-hardened/issues/28). The package version has not been bumped or published by this change.

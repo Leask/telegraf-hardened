@@ -3833,6 +3833,31 @@ test('Bot API 10.3 live photo, poll media, reaction and join request fields are 
     t.pass()
 })
 
+test('personal chats, the PaidMedia namespace and poll media narrowing are typed', async (t) => {
+    await compileTypeScript(
+        'personal-chats-the-paidmedia-namespace-and-poll-media-narrowing-are-typed.ts',
+        [
+            `import * as T from '${packageRoot}/types'`,
+            "declare const chat: Extract<T.ChatFullInfo, { type: 'private' }>",
+            'declare const paid: T.PaidMedia',
+            'declare const media: T.PollMedia',
+            'const channel: T.Chat.ChannelChat | undefined = chat.personal_chat',
+            'const title: string | undefined = chat.personal_chat?.title',
+            "const photo: T.PaidMedia.PaidMediaPhoto | undefined = 'photo' in paid ? paid : undefined",
+            'if (media.photo !== undefined) {',
+            '    const sizes: T.PhotoSize[] = media.photo',
+            '    const video: undefined = media.video',
+            '}',
+            'const empty: T.PollMedia = {}',
+            '// @ts-expect-error a personal chat is always a channel',
+            "const personal: (typeof chat)['personal_chat'] = { id: 1, type: 'private', first_name: 'A' }",
+            '// @ts-expect-error poll media carries at most one media field',
+            'const both: T.PollMedia = { photo: [], video: media.video! }',
+        ].join('\n')
+    )
+    t.pass()
+})
+
 // Context helpers for the Bot API 10.3 chat management methods, keyed by the method they call
 const contextChatManagementCalls = {
     answerChatJoinRequestQuery: (ctx) =>

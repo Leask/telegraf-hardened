@@ -226,7 +226,7 @@ BotFather will give you a _token_, something like `123456789:AbCdefGhIJKlmNoPQRs
 $ npm install telegraf-hardened
 ```
 
-This installs the published release, not the unreleased 10.3 work. For development on this branch, use `npm ci` with lifecycle scripts enabled. The corrected types are temporarily pinned to an immutable HTTPS Git commit while [types PR #6](https://github.com/telegraf-hardened/types/pull/6) and [#7](https://github.com/telegraf-hardened/types/pull/7) await integration. Their `prepare` script generates the declaration files, so `npm ci --ignore-scripts` cannot build this candidate. Before publishing v6.1, replace the pin with `npm:@telegraf-hardened/types@^10.3.1` once that corrected version is available on npm. No SSH key is required.
+This installs the published release, not the unreleased 10.3 work. For development on this branch, use `npm ci` with lifecycle scripts enabled. The corrected types from [types PR #6](https://github.com/telegraf-hardened/types/pull/6) and [#7](https://github.com/telegraf-hardened/types/pull/7) are merged upstream but not yet published, so they are temporarily pinned to the immutable HTTPS Git merge commit in `telegraf-hardened/types`. Their `prepare` script generates the declaration files, so `npm ci --ignore-scripts` cannot build this candidate. Before publishing v6.1, replace the pin with `npm:@telegraf-hardened/types@^10.3.1` once that corrected version is available on npm. No SSH key is required.
 
 <!--
 or
