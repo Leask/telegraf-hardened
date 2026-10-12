@@ -8,16 +8,16 @@ function makeReply<
     C extends Context,
     E extends { reply_parameters?: ReplyParameters },
 >(ctx: C, extra?: E) {
-    if (ctx.msgId)
-        return {
-            // overrides in this order so user can override all properties
-            reply_parameters: {
-                message_id: ctx.msgId,
-                ...extra?.reply_parameters,
-            },
-            ...extra,
-        }
-    else return extra
+    if (!ctx.msgId) return extra
+    const replyParameters = extra?.reply_parameters
+    // an ephemeral target must not be combined with the incoming message id
+    if (replyParameters?.ephemeral_message_id !== undefined) return extra
+    return {
+        ...extra,
+        // after extra, so a partial or undefined reply_parameters keeps the
+        // default target while the user can still override every property
+        reply_parameters: { message_id: ctx.msgId, ...replyParameters },
+    }
 }
 
 const replyContext: ReplyContext = {

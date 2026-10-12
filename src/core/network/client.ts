@@ -362,6 +362,18 @@ async function attachFormMedia(
             {},
             options.requestTimeout
         )
+        if (res.status >= 400) {
+            const body = res.body as { cancel?: () => Promise<void> } | null
+            // best effort: never wait on cancellation, it may not settle
+            try {
+                body?.cancel?.()?.catch(() => undefined)
+            } catch {
+                // ignore
+            }
+            throw new Error(
+                `Unable to download '${media.url}': HTTP ${res.status}`
+            )
+        }
         if (!res.body) throw new TypeError(`Unable to download '${media.url}'`)
         return form.addPart({
             headers: {
@@ -376,7 +388,7 @@ async function attachFormMedia(
             const source = await realpath(media.source)
             if ((await stat(source)).isFile()) {
                 fileName = media.filename ?? path.basename(media.source)
-                mediaSource = await fs.createReadStream(media.source)
+                mediaSource = await fs.createReadStream(source)
             } else {
                 throw new TypeError(
                     `Unable to upload '${media.source}', not a file`

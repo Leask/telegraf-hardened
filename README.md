@@ -497,6 +497,8 @@ bot.on('message', async (ctx) => {
 })
 ```
 
+`Input.fromURLStream` and `{ url }` uploads make the bot's own host download the URL; a response with an HTTP error status is rejected rather than uploaded. Redirects are followed and the download size is not limited, so do not pass URLs supplied by bot users without validating them first: they can point at internal addresses (SSRF).
+
 ### Middleware
 
 In addition to `ctx: Context`, each middleware receives `next: () => Promise<void>`.

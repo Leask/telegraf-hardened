@@ -8,6 +8,7 @@ import type { Telegraf } from '../../telegraf'
 const debug = d('telegraf:polling')
 const DEFAULT_CONFLICT_RETRY_DELAY = 1_000
 const DEFAULT_MAX_CONFLICT_RETRY_DELAY = 60_000
+const SYNC_OFFSET_TIMEOUT = 5_000
 function always<T>(x: T) {
     return () => x
 }
@@ -116,10 +117,7 @@ export class Polling {
                     await this.wait(retryAfter * 1000)
                     continue
                 }
-                if (unauthorizedOrConflict) {
-                    this.skipOffsetSync = true
-                    throw err
-                }
+                if (unauthorizedOrConflict) this.skipOffsetSync = true
                 throw err
             }
         } while (!this.abortController.signal.aborted)
@@ -137,10 +135,12 @@ export class Polling {
     private async syncUpdateOffset() {
         if (this.skipOffsetSync) return
         debug('Syncing update offset...')
-        await this.telegram.callApi('getUpdates', {
-            offset: this.offset,
-            limit: 1,
-        })
+        // stop() must not wait for the default request timeout on a flaky network
+        await this.telegram.callApi(
+            'getUpdates',
+            { offset: this.offset, limit: 1 },
+            { signal: AbortSignal.timeout(SYNC_OFFSET_TIMEOUT) as AbortSignal }
+        )
     }
 
     async loop(handleUpdate: (updates: tg.Update) => Promise<void>) {

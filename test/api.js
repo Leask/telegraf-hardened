@@ -1902,6 +1902,38 @@ test('URL files are still downloaded and uploaded', async (t) => {
     )
 })
 
+test('failed URL downloads are rejected instead of uploaded', async (t) => {
+    for (const status of [403, 404, 500]) {
+        const requests = []
+        let cancelled = false
+        const telegram = new Telegram('123:abc', {
+            fetch: async (url) => {
+                requests.push(String(url))
+                return {
+                    status,
+                    statusText: 'Error',
+                    body: new ReadableStream({
+                        cancel() {
+                            cancelled = true
+                        },
+                    }),
+                    json: async () => ({ ok: true, result: true }),
+                }
+            },
+        })
+
+        await t.throwsAsync(
+            telegram.sendPhoto(1, { url: 'https://example.test/missing.png' }),
+            {
+                message: `Unable to download 'https://example.test/missing.png': HTTP ${status}`,
+            }
+        )
+        // the error page never reaches the Bot API, and its body is released
+        t.deepEqual(requests, ['https://example.test/missing.png'])
+        t.true(cancelled)
+    }
+})
+
 test('rich message media uploads are sent as multipart attachments', async (t) => {
     const sent = await captureBotApiRequest((telegram) =>
         telegram.sendRichMessage({
@@ -2263,6 +2295,33 @@ test('useNewReplies replyWithRichMessage honours reply options and non-message u
         })
     })
     t.is(calls.length, 4)
+})
+
+test('useNewReplies keeps the reply target for partial reply parameters', async (t) => {
+    const { telegram, calls } = recordingTelegram()
+    const ctx = new Context(plainMessageUpdate, telegram, botInfo)
+
+    await withNewReplies(ctx, async (replyCtx) => {
+        await replyCtx.reply('text', {
+            reply_parameters: { allow_sending_without_reply: true },
+        })
+        await replyCtx.reply('text', { reply_parameters: undefined })
+        await replyCtx.reply('text', { reply_parameters: { message_id: 88 } })
+        // ephemeral targets are not mixed with the incoming message id
+        await replyCtx.reply('text', {
+            reply_parameters: { ephemeral_message_id: 7 },
+        })
+    })
+
+    t.deepEqual(
+        calls.map(([, payload]) => payload.reply_parameters),
+        [
+            { message_id: 13, allow_sending_without_reply: true },
+            { message_id: 13 },
+            { message_id: 88 },
+            { ephemeral_message_id: 7 },
+        ]
+    )
 })
 
 test('useNewReplies preserves targets for every reply helper', async (t) => {

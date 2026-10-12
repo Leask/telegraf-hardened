@@ -288,6 +288,27 @@ test('polling stops cleanly when its active request is aborted', async (t) => {
     await t.notThrowsAsync(polling.loop(async () => undefined))
 })
 
+test('the final offset sync has its own short deadline', async (t) => {
+    const signals = []
+    const telegram = {
+        async callApi(method, payload, { signal } = {}) {
+            signals.push(signal)
+            if (payload.limit !== 1) polling.stop()
+            return []
+        },
+    }
+    const polling = new Polling(telegram, [])
+    await polling.loop(async () => undefined)
+
+    t.is(signals.length, 2)
+    const [pollSignal, syncSignal] = signals
+    // not the already aborted polling signal, and not the default request timeout alone
+    t.true(pollSignal.aborted)
+    t.true(syncSignal instanceof AbortSignal)
+    t.not(syncSignal, pollSignal)
+    t.false(syncSignal.aborted)
+})
+
 const shutdownFailures = {
     connection: new TelegrafNetworkError(
         'Socket closed',
