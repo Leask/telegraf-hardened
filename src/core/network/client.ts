@@ -370,11 +370,13 @@ async function attachFormMedia(
             } catch {
                 // ignore
             }
-            throw new Error(
-                `Unable to download '${media.url}': HTTP ${res.status}`
+            throw new Error(`Unable to download attachment: HTTP ${res.status}`)
+        }
+        if (!res.body) {
+            throw new TypeError(
+                'Unable to download attachment: response body is missing'
             )
         }
-        if (!res.body) throw new TypeError(`Unable to download '${media.url}'`)
         return form.addPart({
             headers: {
                 'content-disposition': `form-data; name="${id}"; filename="${fileName}"`,

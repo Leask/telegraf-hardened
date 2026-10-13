@@ -1903,7 +1903,10 @@ test('URL files are still downloaded and uploaded', async (t) => {
 })
 
 test('failed URL downloads are rejected instead of uploaded', async (t) => {
-    for (const status of [403, 404, 500]) {
+    const url =
+        'https://fixture-user:fixture-password@example.test/private.png' +
+        '?signature=fixture-signature&token=fixture-token'
+    for (const status of [400, 403, 404, 500]) {
         const requests = []
         let cancelled = false
         const telegram = new Telegram('123:abc', {
@@ -1922,15 +1925,54 @@ test('failed URL downloads are rejected instead of uploaded', async (t) => {
             },
         })
 
-        await t.throwsAsync(
-            telegram.sendPhoto(1, { url: 'https://example.test/missing.png' }),
+        const error = await t.throwsAsync(
+            telegram.sendPhoto(1, { url }),
             {
-                message: `Unable to download 'https://example.test/missing.png': HTTP ${status}`,
+                message: `Unable to download attachment: HTTP ${status}`,
             }
         )
+        for (const privatePart of [
+            url,
+            'fixture-user',
+            'fixture-password',
+            'fixture-signature',
+            'fixture-token',
+        ]) {
+            t.false(util.inspect(error).includes(privatePart))
+        }
         // the error page never reaches the Bot API, and its body is released
-        t.deepEqual(requests, ['https://example.test/missing.png'])
+        t.deepEqual(requests, [url])
         t.true(cancelled)
+    }
+})
+
+test('bodyless URL downloads do not disclose the attachment URL', async (t) => {
+    const url =
+        'https://fixture-user:fixture-password@example.test/private.png' +
+        '?signature=fixture-signature&token=fixture-token'
+    for (const status of [200, 204]) {
+        const requests = []
+        const telegram = new Telegram('123:abc', {
+            fetch: async (input) => {
+                requests.push(String(input))
+                return { status, body: null }
+            },
+        })
+
+        const error = await t.throwsAsync(telegram.sendPhoto(1, { url }), {
+            instanceOf: TypeError,
+            message: 'Unable to download attachment: response body is missing',
+        })
+        for (const privatePart of [
+            url,
+            'fixture-user',
+            'fixture-password',
+            'fixture-signature',
+            'fixture-token',
+        ]) {
+            t.false(util.inspect(error).includes(privatePart))
+        }
+        t.deepEqual(requests, [url])
     }
 })
 
