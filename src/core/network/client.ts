@@ -247,9 +247,11 @@ const FORM_DATA_JSON_FIELDS = [
     'errors',
 ] as const
 
+type AttachmentOptions = ApiClient.Options & ApiClient.CallApiOptions
+
 async function buildFormDataConfig(
     payload: Opts<keyof Telegram>,
-    options: ApiClient.Options
+    options: AttachmentOptions
 ) {
     for (const field of FORM_DATA_JSON_FIELDS) {
         if (hasProp(payload, field) && typeof payload[field] !== 'string') {
@@ -278,7 +280,7 @@ async function attachFormValue(
     form: MultipartStream,
     id: string,
     value: unknown,
-    options: ApiClient.Options
+    options: AttachmentOptions
 ) {
     if (value == null) {
         return
@@ -313,7 +315,7 @@ async function attachFormValue(
 async function attachNestedFiles(
     form: MultipartStream,
     value: unknown,
-    options: ApiClient.Options,
+    options: AttachmentOptions,
     key?: string
 ): Promise<unknown> {
     if (!value || typeof value !== 'object') return value
@@ -352,14 +354,14 @@ async function attachFormMedia(
     form: MultipartStream,
     media: InputFile,
     id: string,
-    options: ApiClient.Options
+    options: AttachmentOptions
 ) {
     let fileName = media.filename ?? `${id}.${DEFAULT_EXTENSIONS[id] ?? 'dat'}`
     if ('url' in media && media.url !== undefined) {
         const res = await fetchWithTimeout(
             options.fetch,
             media.url,
-            {},
+            { signal: options.signal },
             options.requestTimeout
         )
         if (res.status >= 400) {
@@ -411,7 +413,7 @@ async function attachFormMedia(
 async function answerToWebhook(
     response: Response,
     payload: Opts<keyof Telegram>,
-    options: ApiClient.Options
+    options: AttachmentOptions
 ): Promise<true> {
     if (!includesMedia(payload)) {
         if (!response.headersSent) {
@@ -689,7 +691,7 @@ class ApiClient {
             return await answerToWebhook(
                 response,
                 { method, ...payload },
-                options
+                { ...options, signal }
             )
         }
 
@@ -703,7 +705,10 @@ class ApiClient {
         debug('HTTP call', method, payload)
 
         const config: RequestConfig = includesMedia(payload)
-            ? await buildFormDataConfig({ method, ...payload }, options)
+            ? await buildFormDataConfig(
+                  { method, ...payload },
+                  { ...options, signal }
+              )
             : await buildJSONConfig(payload)
         const apiUrl = new URL(
             `./${options.apiMode}${token}${

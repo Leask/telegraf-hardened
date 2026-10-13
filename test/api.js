@@ -1925,12 +1925,9 @@ test('failed URL downloads are rejected instead of uploaded', async (t) => {
             },
         })
 
-        const error = await t.throwsAsync(
-            telegram.sendPhoto(1, { url }),
-            {
-                message: `Unable to download attachment: HTTP ${status}`,
-            }
-        )
+        const error = await t.throwsAsync(telegram.sendPhoto(1, { url }), {
+            message: `Unable to download attachment: HTTP ${status}`,
+        })
         for (const privatePart of [
             url,
             'fixture-user',
@@ -4553,6 +4550,86 @@ test('custom fetch is used for URL attachments', async (t) => {
     t.is(botApiInit.duplex, 'half')
     t.regex(botApiInit.headers['content-type'], /^multipart\/form-data/)
 })
+
+for (const nested of [false, true]) {
+    test(`caller cancellation reaches ${
+        nested ? 'nested' : 'direct'
+    } URL downloads`, async (t) => {
+        const pendingUrl = 'https://example.test/pending.png'
+        const healthyUrl = 'https://example.test/healthy.png'
+        const controller = new AbortController()
+        const reason = new Error('Synthetic caller cancellation')
+        reason.name = 'AbortError'
+        let downloadSignal
+        let rejectDownload
+        let notifyStarted
+        const started = new Promise((resolve) => {
+            notifyStarted = resolve
+        })
+        const calls = []
+        const telegram = new Telegram('123:abc', {
+            requestTimeout: 0,
+            fetch: async (input, init) => {
+                const url = String(input)
+                calls.push(url)
+                if (init.signal?.aborted) throw init.signal.reason
+                if (url === pendingUrl) {
+                    downloadSignal = init.signal
+                    return await new Promise((_resolve, reject) => {
+                        rejectDownload = reject
+                        init.signal?.addEventListener(
+                            'abort',
+                            () => reject(init.signal.reason),
+                            { once: true }
+                        )
+                        notifyStarted()
+                    })
+                }
+                return {
+                    status: 200,
+                    statusText: 'OK',
+                    body: url === healthyUrl ? 'image-bytes' : undefined,
+                    json: async () => ({ ok: true, result: true }),
+                }
+            },
+        })
+        const method = nested ? 'sendMediaGroup' : 'sendPhoto'
+        const payload = nested
+            ? {
+                  chat_id: 1,
+                  media: [{ type: 'photo', media: { url: pendingUrl } }],
+              }
+            : { chat_id: 1, photo: { url: pendingUrl } }
+        const outcome = telegram
+            .callApi(method, payload, { signal: controller.signal })
+            .then(
+                () => undefined,
+                (error) => error
+            )
+
+        await started
+        controller.abort(reason)
+        const forwarded = downloadSignal?.aborted === true
+        // Settle the old implementation's pending fixture without a timer.
+        if (!forwarded) rejectDownload(reason)
+        const error = await outcome
+        t.true(forwarded)
+        t.is(error, reason)
+        t.deepEqual(calls, [pendingUrl])
+
+        // A per-call cancellation must not become shared client state.
+        t.true(
+            await telegram.callApi('sendPhoto', {
+                chat_id: 1,
+                photo: { url: healthyUrl },
+            })
+        )
+        t.deepEqual(calls.slice(1), [
+            healthyUrl,
+            'https://api.telegram.org/bot123:abc/sendPhoto',
+        ])
+    })
+}
 
 test('request timeout aborts fetch calls', async (t) => {
     const telegram = new Telegram('123:abc', {
