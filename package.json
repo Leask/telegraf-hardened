@@ -95,7 +95,7 @@
     },
     "types": "./typings/index.d.ts",
     "dependencies": {
-        "@telegraf/types": "git+https://github.com/telegraf-hardened/types.git#e5ee83053dd5d683547e99d638ab751f3e754ee1",
+        "@telegraf/types": "npm:@telegraf-hardened/types@^10.3.1",
         "debug": "^4.4.3",
         "mri": "^1.2.0",
         "p-timeout": "^4.1.0",

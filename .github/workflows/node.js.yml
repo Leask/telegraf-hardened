@@ -42,9 +42,7 @@ jobs:
               with:
                   node-version: ${{ matrix.node-version }}
                   cache: npm
-            # Temporary exception: the types Git pin needs prepare to emit declarations.
-            # Release is blocked until registry types replace it; then restore
-            # --ignore-scripts and build the project explicitly (release-notes/next.md).
-            - run: npm ci
+            - run: npm ci --ignore-scripts
+            - run: npm run build
             - run: npm test
             - run: npm run lint
